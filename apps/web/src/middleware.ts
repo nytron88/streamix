@@ -4,7 +4,10 @@ import { errorResponse } from "./lib/utils/responseWrapper";
 
 const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/"]);
 
-const isPublicApiRoute = createRouteMatcher(["/api/health(.*)"]);
+const isPublicApiRoute = createRouteMatcher([
+  "/api/health(.*)",
+  "/api/webhook(.*)",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   try {
