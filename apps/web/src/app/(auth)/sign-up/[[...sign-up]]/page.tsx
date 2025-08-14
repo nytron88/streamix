@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "Sign Up - Streamix",
-    description: "Create your Streamix account and start streaming your content to the world.",
+    description: "Join Streamix to start your live streaming journey. Create an account and connect with audiences worldwide.",
 };
 
 export default function Page() {
