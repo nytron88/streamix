@@ -7,11 +7,246 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/* ========= Enums ========= */
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCEL_SCHEDULED
+  CANCELED
+}
+
+enum PaymentStatus {
+  SUCCEEDED
+  REQUIRES_ACTION
+  CANCELED
+  REFUNDED
+  FAILED
+}
+
+enum VodVisibility {
+  PUBLIC
+  SUB_ONLY
+}
+
+enum NotificationType {
+  TIP
+  SUB
+  FOLLOW
+  SYSTEM
+}
+
+/* ========= Core ========= */
+
 model User {
-  id        String   @id
-  email     String?  @unique
-  name      String?
-  imageUrl  String?
+  id           String          @id
+  email        String?         @unique
+  name         String?
+  imageUrl     String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  channel      Channel?
+  messages     Message[]
+  bans         Ban[]
+  follows      Follow[]        @relation("UserFollows")
+  subs         Subscription[]
+  tips         Tip[]
+  notifications Notification[]
+  stripe       StripeCustomer?
+
+  @@index([createdAt])
+}
+
+model Channel {
+  id          String        @id @default(cuid())
+  userId      String        @unique
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  slug        String?       @unique
+  displayName String?
+  bio         String?
+  category    String?
+
+  avatarS3Key String?
+  bannerS3Key String?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  messages    Message[]
+  follows     Follow[]      @relation("ChannelFollows")
+  vods        Vod[]
+  subs        Subscription[]
+  tips        Tip[]
+  bans        Ban[]
+  sessions    StreamSession[]
+
+  @@index([userId])
+}
+
+model Message {
+  id           String    @id @default(cuid())
+  channelId    String
+  channel      Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  content      String
+  createdAt    DateTime  @default(now())
+
+  @@index([channelId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Follow {
+  id         String   @id @default(cuid())
+
+  userId     String
+  user       User     @relation("UserFollows", fields: [userId], references: [id], onDelete: Cascade)
+
+  channelId  String
+  channel    Channel  @relation("ChannelFollows", fields: [channelId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, channelId])
+  @@index([channelId, createdAt])
+}
+
+model Ban {
+  id         String   @id @default(cuid())
+  channelId  String
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reason     String?
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@unique([channelId, userId])
+  @@index([expiresAt])
+}
+
+/* ========= Monetization (platform-owned Stripe) ========= */
+
+model StripeCustomer {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId String   @unique
+  createdAt        DateTime @default(now())
+}
+
+model Subscription {
+  id               String              @id @default(cuid())
+  userId           String
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  channelId        String
+  channel          Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  stripeSubId      String              @unique
+  status           SubscriptionStatus  @default(ACTIVE)
+  currentPeriodEnd DateTime?
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([userId, channelId])
+  @@index([channelId])
+  @@index([userId])
+}
+
+model Tip {
+  id                  String        @id @default(cuid())
+
+  userId              String?
+  user                User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  channelId           String
+  channel             Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  amountCents         Int
+  currency            String        @default("usd")
+  stripePaymentIntent String        @unique
+  status              PaymentStatus @default(SUCCEEDED)
+
+  createdAt           DateTime      @default(now())
+
+  @@index([channelId, createdAt])
+  @@index([userId, createdAt])
+}
+
+/* ========= VOD (S3-backed) ========= */
+
+model Vod {
+  id               String        @id @default(cuid())
+  channelId        String
+  channel          Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  providerAssetId  String?
+
+  s3Bucket         String
+  s3Region         String
+  s3Key            String
+  s3ETag           String?
+
+  title            String
+  durationS        Int?
+  visibility       VodVisibility @default(PUBLIC)
+  thumbnailS3Key   String?
+
+  publishedAt      DateTime?
+  createdAt        DateTime      @default(now())
+
+  session          StreamSession? @relation("SessionRecording")
+
+  @@index([channelId, createdAt])
+  @@index([visibility, createdAt])
+}
+
+/* ========= Notifications / Sessions ========= */
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model StreamSession {
+  id             String    @id @default(cuid())
+  channelId      String
+  channel        Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  peakViewers    Int       @default(0)
+  totalChatMsgs  Int       @default(0)
+
+  recordingVodId String?   @unique
+  recordingVod   Vod?      @relation("SessionRecording", fields: [recordingVodId], references: [id])
+
+  @@index([channelId, startedAt])
+}
+
+/* ========= Webhook idempotency ========= */
+
+model ProcessedWebhookEvent {
+  id        String   @id @default(cuid())
+  provider  String
+  eventId   String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@unique([provider, eventId])
 }

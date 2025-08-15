@@ -14,10 +14,10 @@ interface NavbarProps {
     onMobileSearchToggle: () => void;
 }
 
-export function Navbar({ 
-    onMobileMenuToggle, 
-    mobileSearchOpen, 
-    onMobileSearchToggle 
+export function Navbar({
+    onMobileMenuToggle,
+    mobileSearchOpen,
+    onMobileSearchToggle
 }: NavbarProps) {
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -33,7 +33,7 @@ export function Navbar({
                         <Menu className="h-5 w-5" />
                         <span className="sr-only">Toggle menu</span>
                     </Button>
-                    
+
                     <Link href="/home" className="hover:opacity-80 transition-opacity">
                         <div className="flex items-center gap-2">
                             <Image
@@ -62,9 +62,9 @@ export function Navbar({
                 {/* Right Side Actions */}
                 <div className="flex items-center gap-2 md:gap-4">
                     {/* Search Button for Mobile */}
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         className="md:hidden"
                         onClick={onMobileSearchToggle}
                     >
@@ -76,14 +76,6 @@ export function Navbar({
                         <span className="sr-only">
                             {mobileSearchOpen ? 'Close search' : 'Open search'}
                         </span>
-                    </Button>
-
-                    {/* Home Button - Hidden on mobile */}
-                    <Button variant="ghost" size="sm" className="hidden lg:flex" asChild>
-                        <Link href="/home">
-                            <Home className="w-4 h-4 mr-2" />
-                            Home
-                        </Link>
                     </Button>
 
                     <ModeToggle />
