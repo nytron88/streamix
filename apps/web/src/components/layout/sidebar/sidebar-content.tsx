@@ -6,14 +6,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Home, TrendingUp, Users, Video, Settings } from "lucide-react";
+import { Home, TrendingUp, Users, LayoutDashboard, Bell, CreditCard } from "lucide-react";
 
 const sidebarItems = [
     { icon: Home, label: "Home", href: "/home" },
     { icon: TrendingUp, label: "Browse", href: "/browse" },
     { icon: Users, label: "Following", href: "/following" },
-    { icon: Video, label: "My Streams", href: "/my-streams" },
-    { icon: Settings, label: "Settings", href: "/settings" },
+    { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+    { icon: Bell, label: "Notifications", href: "/notifications" },
+    { icon: CreditCard, label: "Subscriptions", href: "/subscriptions" },
 ];
 
 const mockLiveChannels = [

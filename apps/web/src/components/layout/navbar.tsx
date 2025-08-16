@@ -6,7 +6,7 @@ import { UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/layout/theme-toggle";
-import { Search, Home, Menu, X } from "lucide-react";
+import { Search, Menu, X } from "lucide-react";
 
 interface NavbarProps {
     onMobileMenuToggle: () => void;
