@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import logger from "@/lib/utils/logger";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const REGION = process.env.AWS_REGION!;
@@ -66,7 +67,7 @@ export async function deleteObjectIfExists(key?: string | null): Promise<void> {
   if (!key) return;
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
-  } catch {
-    // TODO: Log error using logger
+  } catch (error) {
+    logger.error(`Failed to delete object ${key} from S3`, { error });
   }
 }
