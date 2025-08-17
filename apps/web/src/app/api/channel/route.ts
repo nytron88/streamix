@@ -4,7 +4,7 @@ import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
 
-export const GET = withLoggerAndErrorHandler(async (request: NextRequest) => {
+export const GET = withLoggerAndErrorHandler(async (_) => {
   const auth = await requireAuth();
   if (isNextResponse(auth)) return auth;
 

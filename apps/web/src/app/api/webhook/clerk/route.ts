@@ -28,30 +28,55 @@ export async function handleUserCreated(
   const email =
     data.email_addresses?.find((e) => e.id === data.primary_email_address_id)
       ?.email_address ?? null;
-
-  const name =
+  const displayName =
     `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim() || null;
 
-  logger.info("User created webhook received", {
-    eventType: "user.created",
-    userId: data.id,
-    eventId: svixId,
-    email,
-    timestamp: svixTimestamp,
+  const DEFAULT_BANNER_KEY = "defaults/default_banner.png";
+  const DEFAULT_AVATAR_KEY = undefined as string | undefined;
+
+  const base =
+    (
+      email?.split("@")[0] ||
+      displayName?.replace(/\s+/g, "-") ||
+      data.id.slice(0, 8)
+    )
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "")
+      .replace(/--+/g, "-")
+      .replace(/^-+|-+$/g, "") || data.id.slice(0, 8).toLowerCase();
+
+  const slug = base.length >= 3 ? base : `${base}-${data.id.slice(0, 4)}`;
+
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.upsert({
+      where: { id: data.id },
+      update: {
+        email,
+        name: displayName,
+        imageUrl: data.image_url ?? undefined,
+        updatedAt: new Date(),
+      },
+      create: {
+        id: data.id,
+        email,
+        name: displayName,
+        imageUrl: data.image_url ?? undefined,
+      },
+    });
+
+    await tx.channel.create({
+      data: {
+        userId: user.id,
+        slug,
+        displayName: displayName ?? slug,
+        bio: null,
+        category: null,
+        avatarS3Key: DEFAULT_AVATAR_KEY,
+        bannerS3Key: DEFAULT_BANNER_KEY,
+      },
+    });
   });
 
-  await prisma.user.upsert({
-    where: { id: data.id },
-    update: {
-      email,
-      name,
-      imageUrl: data.image_url ?? undefined,
-      updatedAt: new Date(),
-    },
-    create: { id: data.id, email, name, imageUrl: data.image_url ?? undefined },
-  });
-
-  logger.info("User upserted", { userId: data.id, eventType: "user.created" });
   return null;
 }
 
