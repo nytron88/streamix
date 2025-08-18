@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma/prisma";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { Webhook } from "svix";
 import logger from "@/lib/utils/logger";
+import { deleteObjectIfExists } from "@/lib/services/s3Service";
 
 const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -71,7 +72,7 @@ export async function handleUserCreated(
         displayName: displayName ?? slug,
         bio: null,
         category: null,
-        avatarS3Key: data.image_url ?? DEFAULT_AVATAR_KEY,
+        avatarS3Key: data.image_url ? undefined : DEFAULT_AVATAR_KEY,
         bannerS3Key: DEFAULT_BANNER_KEY,
       },
     });
@@ -132,7 +133,25 @@ export async function handleUserDeleted(
     return null;
   }
 
-  await prisma.user.delete({ where: { id: data.id } }).catch(() => null);
+  await prisma.$transaction(async (tx) => {
+    const channel = await tx.channel.findUnique({
+      where: { userId: data.id },
+      select: { avatarS3Key: true, bannerS3Key: true },
+    });
+
+    await tx.channel.delete({ where: { userId: data.id } }).catch(() => null);
+    await tx.user.delete({ where: { id: data.id } }).catch(() => null);
+
+    if (channel) {
+      if (channel.avatarS3Key && !channel.avatarS3Key.startsWith("defaults/")) {
+        await deleteObjectIfExists(channel.avatarS3Key);
+      }
+      if (channel.bannerS3Key && !channel.bannerS3Key.startsWith("defaults/")) {
+        await deleteObjectIfExists(channel.bannerS3Key);
+      }
+    }
+  });
+
   return null;
 }
 
