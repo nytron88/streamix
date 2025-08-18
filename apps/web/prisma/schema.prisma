@@ -81,7 +81,8 @@ model Channel {
   tips        Tip[]
   bans        Ban[]
   sessions    StreamSession[]
-
+  stream      Stream?
+  
   @@index([userId])
 }
 
@@ -209,6 +210,35 @@ model Vod {
   @@index([visibility, createdAt])
 }
 
+model Stream {
+  id              String   @id @default(cuid())
+  channelId       String   @unique
+  channel         Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  // Discovery / metadata
+  name            String?   @db.Text
+  thumbnailS3Key  String?   @db.Text
+
+  // Ingest / encoder info
+  ingressId       String?   @unique
+  serverUrl       String?   @db.Text
+  streamKey       String?   @db.Text
+
+  // Live state & chat prefs (current stream state)
+  isLive                  Boolean @default(false)
+  isChatEnabled           Boolean @default(true)
+  isChatDelayed           Boolean @default(false)
+  isChatFollowersOnly     Boolean @default(false)
+
+  // Optional pointer to the current open session (helps joins)
+  currentSessionId String?   @unique
+  currentSession   StreamSession? @relation("CurrentSession", fields: [currentSessionId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+
 /* ========= Notifications / Sessions ========= */
 
 model Notification {
@@ -236,6 +266,8 @@ model StreamSession {
 
   recordingVodId String?   @unique
   recordingVod   Vod?      @relation("SessionRecording", fields: [recordingVodId], references: [id])
+  
+  currentStream  Stream?   @relation("CurrentSession")
 
   @@index([channelId, startedAt])
 }
