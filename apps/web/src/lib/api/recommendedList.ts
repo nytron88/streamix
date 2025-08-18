@@ -3,22 +3,36 @@ import { requireAuth, isNextResponse } from "./requireAuth";
 import { successResponse, errorResponse } from "../utils/responseWrapper";
 import { getAvatarUrl, getBannerUrl } from "@/lib/services/cdnService";
 import { RecommendedChannel } from "@/types/recommendations";
+import redis from "@/lib/redis/redis";
+
+const TTL_SECONDS = 90;
 
 export async function getRecommendedList(limit = 12) {
   const result = await requireAuth();
   if (isNextResponse(result)) return result;
 
   const { userId } = result;
+  const cacheKey = `recs:channels:${userId}:${limit}`;
+
+  // 1) Cache read
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      const data = typeof cached === "string" ? JSON.parse(cached) : cached;
+      return successResponse("Recommended list fetched (cache)", 200, data);
+    }
+  } catch {
+    // ignore cache read errors
+  }
 
   try {
-    // 1) who does this user follow?
+    // 2) who does this user follow?
     const followed = await prisma.follow.findMany({
       where: { userId },
       select: { channelId: true },
     });
     const followedIds = followed.map((f) => f.channelId);
 
-    // Helpers
     const baseSelect = {
       id: true,
       slug: true,
@@ -27,12 +41,12 @@ export async function getRecommendedList(limit = 12) {
       bannerS3Key: true,
       user: { select: { imageUrl: true } }, // for avatar fallback
       _count: { select: { follows: true } },
-    };
+    } as const;
 
-    // 2) Followed — live first
+    // 3) Followed — live first
     const followedLive = await prisma.channel.findMany({
       where: {
-        id: { in: followedIds.length ? followedIds : ["_none_"] }, // guard empty IN
+        id: { in: followedIds.length ? followedIds : ["_none_"] },
         sessions: { some: { endedAt: null } },
       },
       select: baseSelect,
@@ -40,10 +54,10 @@ export async function getRecommendedList(limit = 12) {
       take: limit,
     });
 
-    const stillNeedAfterFollowedLive = Math.max(0, limit - followedLive.length);
+    const needAfterFollowedLive = Math.max(0, limit - followedLive.length);
 
     const followedOffline =
-      stillNeedAfterFollowedLive > 0
+      needAfterFollowedLive > 0
         ? await prisma.channel.findMany({
             where: {
               id: { in: followedIds.length ? followedIds : ["_none_"] },
@@ -51,7 +65,7 @@ export async function getRecommendedList(limit = 12) {
             },
             select: baseSelect,
             orderBy: { follows: { _count: "desc" } },
-            take: stillNeedAfterFollowedLive,
+            take: needAfterFollowedLive,
           })
         : [];
 
@@ -60,11 +74,9 @@ export async function getRecommendedList(limit = 12) {
       ...followedOffline.map((c) => c.id),
     ]);
 
-    // 3) Non-followed — live first, excluding self
-    const needAfterFollowed = Math.max(
-      0,
-      limit - (followedLive.length + followedOffline.length)
-    );
+    // 4) Non-followed — live first, excluding self
+    const needAfterFollowed =
+      limit - (followedLive.length + followedOffline.length);
 
     const notFollowedWhere = {
       id: { notIn: [...collectedIds, ...followedIds] },
@@ -84,14 +96,12 @@ export async function getRecommendedList(limit = 12) {
           })
         : [];
 
-    const stillNeedAfterNonFollowedLive = Math.max(
-      0,
+    const needAfterNonFollowedLive =
       limit -
-        (followedLive.length + followedOffline.length + nonFollowedLive.length)
-    );
+      (followedLive.length + followedOffline.length + nonFollowedLive.length);
 
     const nonFollowedOffline =
-      stillNeedAfterNonFollowedLive > 0
+      needAfterNonFollowedLive > 0
         ? await prisma.channel.findMany({
             where: {
               ...notFollowedWhere,
@@ -99,11 +109,11 @@ export async function getRecommendedList(limit = 12) {
             },
             select: baseSelect,
             orderBy: { follows: { _count: "desc" } },
-            take: stillNeedAfterNonFollowedLive,
+            take: needAfterNonFollowedLive,
           })
         : [];
 
-    // 4) Compose & map to payload
+    // 5) Compose → map payload
     const all = [
       ...followedLive,
       ...followedOffline,
@@ -111,37 +121,27 @@ export async function getRecommendedList(limit = 12) {
       ...nonFollowedOffline,
     ].slice(0, limit);
 
-    const items: RecommendedChannel[] = all.map((c) => {
-      const live = Boolean((c as any).sessions?.some?.((s: any) => !s.endedAt)); // not selected; infer via query branch
-      return {
-        channelId: c.id,
-        slug: c.slug,
-        displayName: c.displayName,
-        followerCount: c._count.follows,
-        live, // value is implied by which list it came from; see below for accurate flag
-        avatarUrl: getAvatarUrl(
-          // pass a Channel-like object for avatar/banner keys
-          {
-            ...c,
-            avatarS3Key: c.avatarS3Key,
-            bannerS3Key: c.bannerS3Key,
-          } as any,
-          // pass the channel's user for Clerk fallback (has imageUrl)
-          c.user as any
-        ),
-        bannerUrl: getBannerUrl({ ...c } as any),
-      };
-    });
-
-    // We know which group each item came from; mark `live` accurately:
     const liveSet = new Set<string>([
       ...followedLive.map((c) => c.id),
       ...nonFollowedLive.map((c) => c.id),
     ]);
-    const normalized = items.map((it) => ({
-      ...it,
-      live: liveSet.has(it.channelId),
+
+    const normalized: RecommendedChannel[] = all.map((c) => ({
+      channelId: c.id,
+      slug: c.slug,
+      displayName: c.displayName,
+      followerCount: (c as any)._count?.follows || 0,
+      live: liveSet.has(c.id),
+      avatarUrl: getAvatarUrl({ ...c } as any, (c as any).user as any),
+      bannerUrl: getBannerUrl({ ...c } as any),
     }));
+
+    // 6) Cache write (with TTL)
+    try {
+      await redis.set(cacheKey, JSON.stringify(normalized), "EX", TTL_SECONDS);
+    } catch {
+      // ignore cache write errors
+    }
 
     return successResponse(
       "Recommended list fetched successfully",
