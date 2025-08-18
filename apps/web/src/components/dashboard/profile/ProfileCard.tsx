@@ -16,6 +16,7 @@ interface ProfileCardProps {
   isEditing: boolean;
   editForm: EditForm;
   uploading: { avatar: boolean; banner: boolean };
+  pendingUploads?: { avatarS3Key?: string; bannerS3Key?: string };
   onInputChange: (field: keyof EditForm, value: string) => void;
   onImageClick: (type: 'avatar' | 'banner') => void;
 }
@@ -25,6 +26,7 @@ export function ProfileCard({
   isEditing,
   editForm,
   uploading,
+  pendingUploads,
   onInputChange,
   onImageClick,
 }: ProfileCardProps) {
@@ -40,6 +42,7 @@ export function ProfileCard({
           displayName={channel.displayName}
           isEditing={isEditing}
           uploading={uploading}
+          pendingUploads={pendingUploads}
           onImageClick={onImageClick}
         />
 

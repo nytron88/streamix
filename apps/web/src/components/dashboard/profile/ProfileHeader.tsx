@@ -4,6 +4,8 @@ import { Edit, Save, X } from "lucide-react";
 interface ProfileHeaderProps {
   isEditing: boolean;
   saving: boolean;
+  canceling?: boolean;
+  hasChanges?: boolean;
   onEditToggle: () => void;
   onSave: () => void;
 }
@@ -11,6 +13,8 @@ interface ProfileHeaderProps {
 export function ProfileHeader({
   isEditing,
   saving,
+  canceling = false,
+  hasChanges = false,
   onEditToggle,
   onSave,
 }: ProfileHeaderProps) {
@@ -23,17 +27,28 @@ export function ProfileHeader({
       <div className="flex gap-2">
         {isEditing ? (
           <>
-            <Button onClick={onSave} size="sm" disabled={saving}>
+            <Button 
+              onClick={onSave} 
+              size="sm" 
+              disabled={saving || !hasChanges} 
+              className="cursor-pointer"
+            >
               <Save className="w-4 h-4 mr-2" />
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
             </Button>
-            <Button onClick={onEditToggle} variant="outline" size="sm" disabled={saving}>
+            <Button 
+              onClick={onEditToggle} 
+              variant="outline" 
+              size="sm" 
+              disabled={saving || canceling} 
+              className="cursor-pointer"
+            >
               <X className="w-4 h-4 mr-2" />
-              Cancel
+              {canceling ? "Canceling..." : "Cancel"}
             </Button>
           </>
         ) : (
-          <Button onClick={onEditToggle} variant="outline" size="sm">
+          <Button onClick={onEditToggle} variant="outline" size="sm" className="cursor-pointer">
             <Edit className="w-4 h-4 mr-2" />
             Edit Profile
           </Button>

@@ -16,12 +16,15 @@ export function Profile() {
   const {
     isEditing,
     saving,
+    canceling,
     editForm,
+    pendingUploads,
+    hasChanges,
     handleEditToggle,
     handleInputChange,
     handleSave,
     addPendingUpload,
-  } = useProfileEditor(channelData, setChannelData, setError);
+  } = useProfileEditor(channelData, setChannelData);
 
   const { uploading, uploadFile, triggerFileInput } = useFileUpload();
 
@@ -32,8 +35,7 @@ export function Profile() {
       uploadFile(
         file,
         uploadType,
-        (s3Key) => addPendingUpload(uploadType, s3Key),
-        (errorMessage) => setError(errorMessage)
+        (s3Key) => addPendingUpload(uploadType, s3Key)
       );
     });
   };
@@ -55,6 +57,8 @@ export function Profile() {
       <ProfileHeader
         isEditing={isEditing}
         saving={saving}
+        canceling={canceling}
+        hasChanges={hasChanges}
         onEditToggle={handleEditToggle}
         onSave={handleSave}
       />
@@ -64,6 +68,7 @@ export function Profile() {
         isEditing={isEditing}
         editForm={editForm}
         uploading={uploading}
+        pendingUploads={pendingUploads}
         onInputChange={handleInputChange}
         onImageClick={handleImageClick}
       />

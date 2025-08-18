@@ -32,7 +32,7 @@ export async function handleUserCreated(
     `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim() || null;
 
   const DEFAULT_BANNER_KEY = "defaults/default_banner.png";
-  const DEFAULT_AVATAR_KEY = undefined as string | undefined;
+  const DEFAULT_AVATAR_KEY = "defaults/default_profile.png";
 
   const base =
     (
@@ -71,7 +71,7 @@ export async function handleUserCreated(
         displayName: displayName ?? slug,
         bio: null,
         category: null,
-        avatarS3Key: DEFAULT_AVATAR_KEY,
+        avatarS3Key: data.image_url ?? DEFAULT_AVATAR_KEY,
         bannerS3Key: DEFAULT_BANNER_KEY,
       },
     });

@@ -25,7 +25,7 @@ export function ProfileDetailsForm({
   return (
     <div className="space-y-6">
       {/* Basic Info Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* Display Name */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Display Name</label>
@@ -34,6 +34,7 @@ export function ProfileDetailsForm({
               value={editForm.displayName}
               onChange={(e) => onInputChange("displayName", e.target.value)}
               placeholder="Enter display name"
+              className="text-base md:text-sm" // Better touch targets on mobile
             />
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -48,14 +49,14 @@ export function ProfileDetailsForm({
           {isEditing ? (
             <div className="space-y-1">
               <div className="flex">
-                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                <span className="inline-flex items-center px-2 md:px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-xs md:text-sm">
                   /channel/
                 </span>
                 <Input
                   value={editForm.slug}
                   onChange={(e) => onInputChange("slug", e.target.value)}
                   placeholder="your-channel-name"
-                  className="rounded-l-none"
+                  className="rounded-l-none text-base md:text-sm"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -77,6 +78,7 @@ export function ProfileDetailsForm({
               value={editForm.category}
               onChange={(e) => onInputChange("category", e.target.value)}
               placeholder="e.g. Gaming, Music, Art"
+              className="text-base md:text-sm"
             />
           ) : (
             <div>
@@ -111,7 +113,7 @@ export function ProfileDetailsForm({
             onChange={(e) => onInputChange("bio", e.target.value)}
             placeholder="Tell viewers about yourself..."
             rows={3}
-            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           />
         ) : (
           <p className="text-sm text-muted-foreground">

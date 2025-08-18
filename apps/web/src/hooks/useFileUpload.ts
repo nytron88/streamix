@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
+import { toast } from "sonner";
 import { APIResponse } from "@/types/apiResponse";
 
 interface UploadResponse {
@@ -24,23 +25,28 @@ export function useFileUpload() {
     async (
       file: File,
       type: "avatar" | "banner",
-      onSuccess: (key: string) => void,
-      onError: (error: string) => void
+      onSuccess: (key: string) => void
     ) => {
       try {
         setUploading((prev) => ({ ...prev, [type]: true }));
 
         // Validate file
         const validTypes = ["image/jpeg", "image/png", "image/webp"];
-        const maxSize = type === "avatar" ? 2 * 1024 * 1024 : 5 * 1024 * 1024; // 2MB for avatar, 5MB for banner
+        const maxSize = type === "avatar" ? 10 * 1024 * 1024 : 25 * 1024 * 1024; // 10MB for avatar, 25MB for banner
 
         if (!validTypes.includes(file.type)) {
-          throw new Error("Only JPEG, PNG, and WebP images are allowed");
+          toast.error("Invalid file type", {
+            description: "Only JPEG, PNG, and WebP images are allowed",
+          });
+          return;
         }
 
         if (file.size > maxSize) {
           const maxSizeMB = maxSize / (1024 * 1024);
-          throw new Error(`File size must be less than ${maxSizeMB}MB`);
+          toast.error("File too large", {
+            description: `File size must be less than ${maxSizeMB}MB`,
+          });
+          return;
         }
 
         // Get signed URL
@@ -56,9 +62,11 @@ export function useFileUpload() {
           !signedUrlResponse.data.success ||
           !signedUrlResponse.data.payload
         ) {
-          throw new Error(
-            signedUrlResponse.data.message || "Failed to get upload URL"
-          );
+          toast.error("Upload failed", {
+            description:
+              signedUrlResponse.data.message || "Failed to get upload URL",
+          });
+          return;
         }
 
         const { url, key, headers } = signedUrlResponse.data.payload;
@@ -66,17 +74,24 @@ export function useFileUpload() {
         // Upload file to S3
         await axios.put(url, file, { headers });
 
-        console.log(`${type} uploaded successfully:`, key);
+        toast.success("Upload successful", {
+          description: `${
+            type === "avatar" ? "Profile picture" : "Banner"
+          } updated successfully`,
+        });
         onSuccess(key);
       } catch (err) {
-        console.error(`Error uploading ${type}:`, err);
         if (axios.isAxiosError(err)) {
           const errorMessage = err.response?.data?.message || err.message;
-          onError(`Upload failed: ${errorMessage}`);
+          toast.error("Upload failed", {
+            description: errorMessage,
+          });
         } else {
-          onError(
-            err instanceof Error ? err.message : `Failed to upload ${type}`
-          );
+          const message =
+            err instanceof Error ? err.message : `Failed to upload ${type}`;
+          toast.error("Upload failed", {
+            description: message,
+          });
         }
       } finally {
         setUploading((prev) => ({ ...prev, [type]: false }));

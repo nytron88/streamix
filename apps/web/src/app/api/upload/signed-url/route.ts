@@ -41,7 +41,7 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
 
   const key = generateImageKey(userId, type, contentType);
 
-  const maxSize = type === "avatar" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+  const maxSize = type === "avatar" ? 10 * 1024 * 1024 : 25 * 1024 * 1024; // 10MB for avatar, 25MB for banner
 
   const { url, requiredHeaders, expiresIn } = await getUploadSignedUrl({
     key,

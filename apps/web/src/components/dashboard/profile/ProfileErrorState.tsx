@@ -19,7 +19,7 @@ export function ProfileErrorState({ error, onRetry }: ProfileErrorStateProps) {
             <Button
               onClick={onRetry}
               variant="outline"
-              className="mt-4"
+              className="mt-4 cursor-pointer"
             >
               Retry
             </Button>

@@ -89,9 +89,38 @@ export const PATCH = withLoggerAndErrorHandler(async (request: NextRequest) => {
         });
         if (!current) throw new Error("Channel not found");
 
+        // Only include fields that are actually provided (not undefined)
+        const fieldsToUpdate: Partial<ChannelUpdateInput> = {};
+
+        if (updateData.displayName !== undefined)
+          fieldsToUpdate.displayName = updateData.displayName;
+        if (updateData.bio !== undefined) fieldsToUpdate.bio = updateData.bio;
+        if (updateData.category !== undefined)
+          fieldsToUpdate.category = updateData.category;
+        if (updateData.slug !== undefined)
+          fieldsToUpdate.slug = updateData.slug;
+        if (updateData.avatarS3Key !== undefined)
+          fieldsToUpdate.avatarS3Key = updateData.avatarS3Key;
+        if (updateData.bannerS3Key !== undefined)
+          fieldsToUpdate.bannerS3Key = updateData.bannerS3Key;
+
+        // If no fields to update, return current channel
+        if (Object.keys(fieldsToUpdate).length === 0) {
+          const currentChannel = await tx.channel.findUnique({
+            where: { userId },
+          });
+          if (!currentChannel) throw new Error("Channel not found");
+
+          return {
+            oldAvatarKey: current.avatarS3Key,
+            oldBannerKey: current.bannerS3Key,
+            updatedChannel: currentChannel,
+          };
+        }
+
         const ch = await tx.channel.update({
           where: { userId },
-          data: updateData,
+          data: fieldsToUpdate,
         });
 
         return {
