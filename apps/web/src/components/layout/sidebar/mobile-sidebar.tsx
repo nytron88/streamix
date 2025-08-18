@@ -3,13 +3,17 @@
 import Image from "next/image";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SidebarContent } from "./sidebar-content";
+import { RecommendedChannel } from "@/types/recommendations";
+
 
 interface MobileSidebarProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    recommendedChannels: RecommendedChannel[];
+    loading: boolean;
 }
 
-export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
+export function MobileSidebar({ open, onOpenChange, recommendedChannels, loading }: MobileSidebarProps) {
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="left" className="w-64 p-0">
@@ -25,7 +29,7 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
                         Streamix
                     </SheetTitle>
                 </SheetHeader>
-                <SidebarContent />
+                <SidebarContent recommendedChannels={recommendedChannels} loading={loading} />
             </SheetContent>
         </Sheet>
     );

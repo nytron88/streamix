@@ -7,6 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Home, TrendingUp, Users, LayoutDashboard, Bell, CreditCard } from "lucide-react";
+import { RecommendedChannel } from "@/types/recommendations";
+
+
+interface SidebarContentProps {
+    recommendedChannels: RecommendedChannel[];
+    loading: boolean;
+}
 
 const sidebarItems = [
     { icon: Home, label: "Home", href: "/home" },
@@ -17,34 +24,27 @@ const sidebarItems = [
     { icon: CreditCard, label: "Subscriptions", href: "/subscriptions" },
 ];
 
-const mockLiveChannels = [
-    {
-        id: "1",
-        name: "StreamerName",
-        category: "Gaming",
-        viewers: "1.2k",
-        avatar: "/placeholder-avatar.jpg",
-        fallback: "SN"
-    },
-    {
-        id: "2",
-        name: "ArtCreator",
-        category: "Art",
-        viewers: "856",
-        avatar: "/placeholder-avatar.jpg",
-        fallback: "AC"
-    },
-    {
-        id: "3",
-        name: "MusicianLive",
-        category: "Music",
-        viewers: "623",
-        avatar: "/placeholder-avatar.jpg",
-        fallback: "MU"
-    }
-];
+export function SidebarContent({ recommendedChannels, loading }: SidebarContentProps) {
+    // Helper function to get fallback initials from display name
+    const getInitials = (name: string | null) => {
+        if (!name) return "?";
+        return name
+            .split(" ")
+            .map(word => word.charAt(0))
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
+    };
 
-export function SidebarContent() {
+    // Helper function to format follower count
+    const formatFollowerCount = (count: number) => {
+        if (count >= 1000000) {
+            return `${(count / 1000000).toFixed(1)}M`;
+        } else if (count >= 1000) {
+            return `${(count / 1000).toFixed(1)}k`;
+        }
+        return count.toString();
+    };
     return (
         <div className="flex flex-col h-full">
             {/* Navigation Links */}
@@ -71,40 +71,73 @@ export function SidebarContent() {
 
             <Separator />
 
-            {/* Live Channels Section */}
+            {/* Recommended Channels Section */}
             <div className="p-4 flex-1">
                 <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                    LIVE CHANNELS
+                    RECOMMENDED CHANNELS
                 </h3>
                 <ScrollArea className="h-[300px] md:h-[400px]">
                     <div className="space-y-3">
-                        {mockLiveChannels.map((channel) => (
-                            <div
-                                key={channel.id}
-                                className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
-                            >
-                                <div className="relative">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={channel.avatar} />
-                                        <AvatarFallback>{channel.fallback}</AvatarFallback>
-                                    </Avatar>
-                                    <Badge
-                                        variant="destructive"
-                                        className="absolute -top-1 -right-1 h-3 w-3 p-0 bg-red-500 hover:bg-red-500"
-                                    >
-                                        <span className="sr-only">Live</span>
-                                    </Badge>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{channel.name}</p>
-                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <span>{channel.category}</span>
-                                        <span>•</span>
-                                        <span>{channel.viewers} viewers</span>
+                        {loading ? (
+                            // Loading skeleton
+                            Array.from({ length: 3 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-center gap-3 p-2 rounded-md"
+                                >
+                                    <div className="relative">
+                                        <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+                                    </div>
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                        <div className="h-4 bg-muted animate-pulse rounded" />
+                                        <div className="h-3 bg-muted animate-pulse rounded w-3/4" />
                                     </div>
                                 </div>
+                            ))
+                        ) : recommendedChannels.length > 0 ? (
+                            recommendedChannels.map((channel) => (
+                                <Link
+                                    key={channel.channelId}
+                                    href={`/channel/${channel.slug || channel.channelId}`}
+                                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                                >
+                                    <div className="relative">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={channel.avatarUrl} />
+                                            <AvatarFallback>
+                                                {getInitials(channel.displayName)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        {channel.live && (
+                                            <Badge
+                                                variant="destructive"
+                                                className="absolute -top-1 -right-1 h-3 w-3 p-0 bg-red-500 hover:bg-red-500"
+                                            >
+                                                <span className="sr-only">Live</span>
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">
+                                            {channel.displayName || "Unknown Channel"}
+                                        </p>
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <span>{formatFollowerCount(channel.followerCount)} followers</span>
+                                            {channel.live && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span className="text-red-500 font-medium">LIVE</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))
+                        ) : (
+                            <div className="text-sm text-muted-foreground text-center py-4">
+                                No recommendations available
                             </div>
-                        ))}
+                        )}
                     </div>
                 </ScrollArea>
             </div>

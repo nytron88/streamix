@@ -1,11 +1,18 @@
 "use client";
 
 import { SidebarContent } from "./sidebar-content";
+import { RecommendedChannel } from "@/types/recommendations";
 
-export function DesktopSidebar() {
+
+interface DesktopSidebarProps {
+    recommendedChannels: RecommendedChannel[];
+    loading: boolean;
+}
+
+export function DesktopSidebar({ recommendedChannels, loading }: DesktopSidebarProps) {
     return (
         <aside className="hidden md:block w-64 border-r bg-muted/10 min-h-[calc(100vh-4rem)]">
-            <SidebarContent />
+            <SidebarContent recommendedChannels={recommendedChannels} loading={loading} />
         </aside>
     );
 }
