@@ -14,7 +14,7 @@ export async function getRecommendedList(limit = 12) {
   const { userId } = result;
   const cacheKey = `recs:channels:${userId}:${limit}`;
 
-  // 1) Cache read
+  // 1) Try cache
   try {
     const cached = await redis.get(cacheKey);
     if (cached) {
@@ -26,7 +26,7 @@ export async function getRecommendedList(limit = 12) {
   }
 
   try {
-    // 2) who does this user follow?
+    // 2) IDs this user follows
     const followed = await prisma.follow.findMany({
       where: { userId },
       select: { channelId: true },
@@ -39,15 +39,16 @@ export async function getRecommendedList(limit = 12) {
       displayName: true,
       avatarS3Key: true,
       bannerS3Key: true,
-      user: { select: { imageUrl: true } }, // for avatar fallback
+      user: { select: { imageUrl: true } }, // fallback for avatar
       _count: { select: { follows: true } },
+      stream: { select: { isLive: true } },
     } as const;
 
     // 3) Followed — live first
     const followedLive = await prisma.channel.findMany({
       where: {
         id: { in: followedIds.length ? followedIds : ["_none_"] },
-        sessions: { some: { endedAt: null } },
+        stream: { is: { isLive: true } },
       },
       select: baseSelect,
       orderBy: { follows: { _count: "desc" } },
@@ -61,7 +62,10 @@ export async function getRecommendedList(limit = 12) {
         ? await prisma.channel.findMany({
             where: {
               id: { in: followedIds.length ? followedIds : ["_none_"] },
-              sessions: { none: { endedAt: null } },
+              OR: [
+                { stream: { is: { isLive: false } } },
+                { stream: null }, // safety in case stream row is missing
+              ],
             },
             select: baseSelect,
             orderBy: { follows: { _count: "desc" } },
@@ -74,21 +78,17 @@ export async function getRecommendedList(limit = 12) {
       ...followedOffline.map((c) => c.id),
     ]);
 
-    // 4) Non-followed — live first, excluding self
+    // 4) Non-followed — live first (exclude self & already picked)
     const needAfterFollowed =
       limit - (followedLive.length + followedOffline.length);
-
-    const notFollowedWhere = {
-      id: { notIn: [...collectedIds, ...followedIds] },
-      userId: { not: userId },
-    };
 
     const nonFollowedLive =
       needAfterFollowed > 0
         ? await prisma.channel.findMany({
             where: {
-              ...notFollowedWhere,
-              sessions: { some: { endedAt: null } },
+              id: { notIn: [...collectedIds, ...followedIds] },
+              userId: { not: userId },
+              stream: { is: { isLive: true } },
             },
             select: baseSelect,
             orderBy: { follows: { _count: "desc" } },
@@ -104,8 +104,15 @@ export async function getRecommendedList(limit = 12) {
       needAfterNonFollowedLive > 0
         ? await prisma.channel.findMany({
             where: {
-              ...notFollowedWhere,
-              sessions: { none: { endedAt: null } },
+              id: {
+                notIn: [
+                  ...collectedIds,
+                  ...followedIds,
+                  ...nonFollowedLive.map((c) => c.id),
+                ],
+              },
+              userId: { not: userId },
+              OR: [{ stream: { is: { isLive: false } } }, { stream: null }],
             },
             select: baseSelect,
             orderBy: { follows: { _count: "desc" } },
@@ -113,7 +120,7 @@ export async function getRecommendedList(limit = 12) {
           })
         : [];
 
-    // 5) Compose → map payload
+    // 5) Compose → payload
     const all = [
       ...followedLive,
       ...followedOffline,
@@ -121,22 +128,17 @@ export async function getRecommendedList(limit = 12) {
       ...nonFollowedOffline,
     ].slice(0, limit);
 
-    const liveSet = new Set<string>([
-      ...followedLive.map((c) => c.id),
-      ...nonFollowedLive.map((c) => c.id),
-    ]);
-
     const normalized: RecommendedChannel[] = all.map((c) => ({
       channelId: c.id,
       slug: c.slug,
       displayName: c.displayName,
-      followerCount: (c as any)._count?.follows || 0,
-      live: liveSet.has(c.id),
-      avatarUrl: getAvatarUrl({ ...c } as any, (c as any).user as any),
+      followerCount: c._count.follows,
+      live: Boolean(c.stream?.isLive),
+      avatarUrl: getAvatarUrl({ ...c } as any, c.user as any),
       bannerUrl: getBannerUrl({ ...c } as any),
     }));
 
-    // 6) Cache write (with TTL)
+    // 6) Cache write (TTL)
     try {
       await redis.set(cacheKey, JSON.stringify(normalized), "EX", TTL_SECONDS);
     } catch {

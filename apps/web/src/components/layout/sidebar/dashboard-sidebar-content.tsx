@@ -8,11 +8,14 @@ import {
     Bell,
     DollarSign,
     BarChart3,
-    Home
+    Home,
+    Key
 } from "lucide-react";
 
 const dashboardSidebarItems = [
     { icon: Home, label: "Home", href: "/home" },
+    { icon: User, label: "Profile", href: "/dashboard" },
+    { icon: Key, label: "Keys", href: "/dashboard/keys" },
     { icon: Play, label: "Start Streaming", href: "/dashboard/start-streaming" },
     { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
     { icon: DollarSign, label: "Earnings", href: "/dashboard/earnings" },
