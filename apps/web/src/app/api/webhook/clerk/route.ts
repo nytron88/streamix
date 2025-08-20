@@ -7,6 +7,7 @@ import { WebhookEvent } from "@clerk/nextjs/server";
 import { Webhook } from "svix";
 import logger from "@/lib/utils/logger";
 import { deleteObjectIfExists } from "@/lib/services/s3Service";
+import { ingress } from "@/lib/services/ingressService";
 
 const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -65,7 +66,7 @@ export async function handleUserCreated(
       },
     });
 
-    await tx.channel.create({
+    const channel = await tx.channel.create({
       data: {
         userId: user.id,
         slug,
@@ -74,6 +75,14 @@ export async function handleUserCreated(
         category: null,
         avatarS3Key: data.image_url ? undefined : DEFAULT_AVATAR_KEY,
         bannerS3Key: DEFAULT_BANNER_KEY,
+      },
+      select: { id: true },
+    });
+
+    await tx.stream.create({
+      data: {
+        channelId: channel.id,
+        name: displayName ?? slug,
       },
     });
   });
@@ -129,28 +138,75 @@ export async function handleUserDeleted(
   svixId: string,
   svixTimestamp: string
 ): Promise<HandlerResult> {
-  if (!data.id) {
-    return null;
-  }
+  if (!data.id) return null;
+
+  // 1) In a txn: read what we need + delete rows
+  const toCleanup: {
+    roomName?: string; // LiveKit roomName (userId)
+    streamThumbKey?: string | null;
+    avatarKey?: string | null;
+    bannerKey?: string | null;
+    channelId?: string | null;
+  } = {};
 
   await prisma.$transaction(async (tx) => {
+    // channel (by user)
     const channel = await tx.channel.findUnique({
       where: { userId: data.id },
-      select: { avatarS3Key: true, bannerS3Key: true },
+      select: { id: true, avatarS3Key: true, bannerS3Key: true },
     });
 
-    await tx.channel.delete({ where: { userId: data.id } }).catch(() => null);
-    await tx.user.delete({ where: { id: data.id } }).catch(() => null);
-
     if (channel) {
-      if (channel.avatarS3Key && !channel.avatarS3Key.startsWith("defaults/")) {
-        await deleteObjectIfExists(channel.avatarS3Key);
+      toCleanup.channelId = channel.id;
+      toCleanup.avatarKey = channel.avatarS3Key;
+      toCleanup.bannerKey = channel.bannerS3Key;
+
+      // stream (by channel)
+      const stream = await tx.stream.findUnique({
+        where: { channelId: channel.id },
+        select: { id: true, thumbnailS3Key: true },
+      });
+
+      if (stream) {
+        toCleanup.streamThumbKey = stream.thumbnailS3Key;
+        // This delete is optional; deleting channel (cascade) will delete stream anyway.
+        await tx.stream.delete({ where: { id: stream.id } }).catch(() => null);
       }
-      if (channel.bannerS3Key && !channel.bannerS3Key.startsWith("defaults/")) {
-        await deleteObjectIfExists(channel.bannerS3Key);
-      }
+
+      // Delete channel (will cascade other relations due to onDelete rules)
+      await tx.channel.delete({ where: { id: channel.id } }).catch(() => null);
     }
+
+    // Delete user last
+    await tx.user.delete({ where: { id: data.id } }).catch(() => null);
   });
+
+  // 2) Outside txn: best-effort external cleanup
+
+  // LiveKit: delete ALL ingresses for this user's room (roomName = userId)
+  try {
+    const all = await ingress.listIngress({ roomName: data.id! });
+    await Promise.allSettled(
+      all.map((i) => ingress.deleteIngress(i.ingressId))
+    );
+  } catch {
+    // ignore
+  }
+
+  // S3: delete non-default assets (avatar/banner/stream thumbnail)
+  try {
+    if (toCleanup.avatarKey && !toCleanup.avatarKey.startsWith("defaults/")) {
+      await deleteObjectIfExists(toCleanup.avatarKey);
+    }
+    if (toCleanup.bannerKey && !toCleanup.bannerKey.startsWith("defaults/")) {
+      await deleteObjectIfExists(toCleanup.bannerKey);
+    }
+    if (toCleanup.streamThumbKey) {
+      await deleteObjectIfExists(toCleanup.streamThumbKey);
+    }
+  } catch {
+    // ignore best-effort failures
+  }
 
   return null;
 }
