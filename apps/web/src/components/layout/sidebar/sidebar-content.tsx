@@ -98,8 +98,9 @@ export function SidebarContent({ recommendedChannels, loading }: SidebarContentP
                             recommendedChannels.map((channel) => (
                                 <Link
                                     key={channel.channelId}
-                                    href={`/channel/${channel.slug || channel.channelId}`}
+                                    href={channel.live && channel.slug ? `/${channel.slug}` : `/channel/${channel.slug || channel.channelId}`}
                                     className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                                    title={channel.live ? `Watch ${channel.displayName || "Unknown Channel"} live` : `View ${channel.displayName || "Unknown Channel"}'s channel`}
                                 >
                                     <div className="relative">
                                         <Avatar className="h-8 w-8">
