@@ -1,17 +1,14 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useChannelBySlug } from "@/hooks/useChannelBySlug";
 import { useViewerToken } from "@/hooks/useViewerToken";
 import { useFollowActions } from "@/hooks/useFollowActions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
-  Users,
-  Clock,
   AlertCircle,
   Play,
   UserPlus,
@@ -131,180 +128,147 @@ export default function ChannelPage() {
 
   return (
     <div className="space-y-6">
-      {/* Channel Header */}
-      <Card>
-        <CardContent className="p-6">
-          {assets.bannerUrl && (
-            <div
-              className="h-32 md:h-48 bg-cover bg-center rounded-lg mb-6"
-              style={{ backgroundImage: `url(${assets.bannerUrl})` }}
-            />
-          )}
 
-          <div className="flex flex-col md:flex-row gap-4 items-start">
-            <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-background">
-              <AvatarImage src={assets.avatarUrl} />
-              <AvatarFallback>
-                {channel.displayName?.[0] || channel.user.name?.[0] || "?"}
-              </AvatarFallback>
-            </Avatar>
-
-            <div className="flex-1 space-y-3">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold">
-                    {channel.displayName || channel.user.name}
-                  </h1>
-                  <p className="text-muted-foreground">@{channel.slug}</p>
-                </div>
-
-                {!viewer.isOwner && (
-                  <Button
-                    onClick={handleFollowToggle}
-                    disabled={followLoading}
-                    variant={isFollowing ? "outline" : "default"}
-                    className="w-full md:w-auto"
-                  >
-                    {followLoading ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-                    ) : isFollowing ? (
-                      <UserMinus className="h-4 w-4 mr-2" />
-                    ) : (
-                      <UserPlus className="h-4 w-4 mr-2" />
-                    )}
-                    {isFollowing ? "Unfollow" : "Follow"}
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
-                  <span>{channel.followerCount.toLocaleString()} followers</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  <span>Joined {new Date(channel.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              {channel.bio && <p className="text-sm leading-relaxed">{channel.bio}</p>}
-              {channel.category && <Badge variant="secondary">{channel.category}</Badge>}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stream Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Play className="h-5 w-5" />
-            Stream Status
-            {isLive && <Badge variant="destructive" className="bg-red-500">LIVE</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isLive ? (
-            <>
-              <div>
-                <h3 className="font-semibold">{streamName}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {channel.displayName || channel.user.name} is currently live!
-                </p>
-              </div>
-
-              {/* Token Status */}
-              {tokenLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                  <span className="text-sm text-muted-foreground">Getting viewer token...</span>
-                </div>
-              ) : tokenError ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-destructive">Failed to get viewer token</p>
-                  <Button variant="outline" size="sm" onClick={() => refreshToken()}>
-                    Retry
-                  </Button>
-                </div>
-              ) : token ? (
-                <p className="text-sm text-green-600">✓ Token acquired</p>
-              ) : null}
-
-              {/* Chat Settings */}
-              {channel.stream && (
-                <div className="space-y-2">
-                  <Separator />
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`h-2 w-2 rounded-full ${channel.stream.isChatEnabled ? "bg-green-500" : "bg-red-500"
-                          }`}
-                      />
-                      <span>Chat {channel.stream.isChatEnabled ? "Enabled" : "Disabled"}</span>
+      {/* Stream Content */}
+      {isLive ? (
+        // Live Stream
+        token && roomName && wsUrl ? (
+          <div className="space-y-4">
+            {viewer.isOwner ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <div className="space-y-4">
+                    <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Play className="h-8 w-8 text-primary" />
                     </div>
-                    {channel.stream.isChatDelayed && (
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                        <span>Chat Delayed</span>
-                      </div>
-                    )}
-                    {channel.stream.isChatFollowersOnly && (
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-blue-500" />
-                        <span>Followers Only</span>
-                      </div>
-                    )}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">You're Live!</h3>
+                      <p className="text-muted-foreground">
+                        Your stream is currently broadcasting. Use your streaming software (OBS, etc.) to monitor your stream.
+                      </p>
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {/* Stream Title */}
+                <div className="text-center space-y-2">
+                  <h1 className="text-3xl font-bold">{streamName}</h1>
+                  <p className="text-muted-foreground">
+                    Now streaming live • Click anywhere on the player to show controls
+                  </p>
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8 space-y-3">
-              <div className="mx-auto h-12 w-12 bg-muted rounded-full flex items-center justify-center">
-                <Play className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Channel is offline</h3>
-                <p className="text-sm text-muted-foreground">
-                  {channel.displayName || channel.user.name} is not currently streaming.
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Stream Player */}
-      {isLive && token && roomName && wsUrl && (
-        viewer.isOwner ? (
+                {/* Stream Player */}
+                <div className="w-full max-w-6xl mx-auto">
+                  <StreamPlayer
+                    token={token}
+                    serverUrl={wsUrl}
+                    roomName={roomName}
+                    viewerName={username}
+                    channelDisplayName={channel.displayName || channel.user.name}
+                  />
+                </div>
+
+                {/* Minimal Stream Info */}
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Link href={`/channel/${channel.slug || channel.id}`} className="hover:opacity-80 transition-opacity">
+                          <Avatar className="h-10 w-10 cursor-pointer">
+                            <AvatarImage src={assets.avatarUrl} />
+                            <AvatarFallback>
+                              {channel.displayName?.[0] || channel.user.name?.[0] || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
+                        <div>
+                          <Link 
+                            href={`/channel/${channel.slug || channel.id}`} 
+                            className="hover:text-primary transition-colors"
+                          >
+                            <h3 className="font-semibold cursor-pointer">
+                              {channel.displayName || channel.user.name}
+                            </h3>
+                          </Link>
+                          <p className="text-sm text-muted-foreground">
+                            {channel.followerCount.toLocaleString()} followers
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {!viewer.isOwner && (
+                        <Button
+                          onClick={handleFollowToggle}
+                          disabled={followLoading}
+                          variant={isFollowing ? "outline" : "default"}
+                          size="sm"
+                        >
+                          {followLoading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                          ) : isFollowing ? (
+                            <UserMinus className="h-4 w-4 mr-2" />
+                          ) : (
+                            <UserPlus className="h-4 w-4 mr-2" />
+                          )}
+                          {isFollowing ? "Unfollow" : "Follow"}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+        ) : (
+          // Loading token or connection issues
           <Card>
             <CardContent className="p-6 text-center">
               <div className="space-y-4">
-                <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Play className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">You're Live!</h3>
-                  <p className="text-muted-foreground">
-                    Your stream is currently broadcasting. Use your streaming software (OBS, etc.) to monitor your stream.
-                  </p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <p>Viewers can watch your stream at this page, but as the streamer, you should use your broadcasting software to see what you're streaming.</p>
-                </div>
+                {tokenLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                    <p className="text-muted-foreground">Connecting to stream...</p>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Unable to Connect</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Could not connect to the live stream.
+                      </p>
+                      <Button variant="outline" onClick={() => refreshToken()}>
+                        Try Again
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <StreamPlayer
-            token={token}
-            serverUrl={wsUrl}
-            roomName={roomName}
-            viewerName={username}
-            channelDisplayName={channel.displayName || channel.user.name}
-          />
         )
+      ) : (
+        // Channel Offline
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="space-y-4">
+              <div className="mx-auto h-16 w-16 bg-muted rounded-full flex items-center justify-center">
+                <Play className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold mb-2">
+                  {channel.displayName || channel.user.name} is offline
+                </h3>
+                <p className="text-muted-foreground">
+                  This channel is not currently streaming.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

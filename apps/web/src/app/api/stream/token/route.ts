@@ -37,8 +37,13 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
     if (!expired) return errorResponse("You are banned from this channel", 403);
   }
 
+  // Generate unique identity for this connection to allow multiple devices/tabs
+  const uniqueIdentity = `${viewerId}_${Date.now()}_${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
   const token = await mintViewerToken({
-    viewerId,
+    viewerId: uniqueIdentity,
     viewerName: user.name ?? null,
     roomName: channel.userId,
     subscribeOnly: true,
