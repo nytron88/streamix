@@ -9,13 +9,15 @@ import {
     DollarSign,
     BarChart3,
     Home,
-    Key
+    Key,
+    MessageCircle
 } from "lucide-react";
 
 const dashboardSidebarItems = [
     { icon: Home, label: "Home", href: "/home" },
     { icon: User, label: "Profile", href: "/dashboard" },
     { icon: Key, label: "Keys", href: "/dashboard/keys" },
+    { icon: MessageCircle, label: "Chat", href: "/dashboard/chat" },
     { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
     { icon: DollarSign, label: "Earnings", href: "/dashboard/earnings" },
     { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
