@@ -9,20 +9,40 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Users, Clock, AlertCircle, Play, UserPlus, UserMinus } from "lucide-react";
+import {
+  Users,
+  Clock,
+  AlertCircle,
+  Play,
+  UserPlus,
+  UserMinus,
+} from "lucide-react";
 import { useState, useEffect } from "react";
+import { StreamPlayer } from "@/components/stream/StreamPlayer";
 
 export default function ChannelPage() {
   const params = useParams();
   const username = params?.username as string;
-  
-  const { data: channelData, isLoading: channelLoading, error: channelError, refresh: refreshChannel } = useChannelBySlug(username);
-  const { token, wsUrl, roomName, isLoading: tokenLoading, error: tokenError, refresh: refreshToken } = useViewerToken(username);
-  const { followChannel, unfollowChannel, isLoading: followLoading } = useFollowActions();
 
+  const {
+    data: channelData,
+    isLoading: channelLoading,
+    error: channelError,
+    refresh: refreshChannel,
+  } = useChannelBySlug(username);
+
+  const {
+    token,
+    wsUrl,
+    roomName,
+    isLoading: tokenLoading,
+    error: tokenError,
+    refresh: refreshToken,
+  } = useViewerToken(username);
+
+  const { followChannel, unfollowChannel, isLoading: followLoading } = useFollowActions();
   const [localFollowState, setLocalFollowState] = useState<boolean | null>(null);
 
-  // Update local follow state when channel data loads
   useEffect(() => {
     if (channelData?.viewer) {
       setLocalFollowState(channelData.viewer.isFollowing);
@@ -31,32 +51,27 @@ export default function ChannelPage() {
 
   const handleFollowToggle = async () => {
     if (!channelData?.channel.id) return;
-
     const currentState = localFollowState ?? channelData.viewer.isFollowing;
-    const success = currentState 
+    const ok = currentState
       ? await unfollowChannel(channelData.channel.id)
       : await followChannel(channelData.channel.id);
-
-    if (success) {
+    if (ok) {
       setLocalFollowState(!currentState);
-      // Refresh channel data to get updated follower count
       refreshChannel();
     }
   };
 
-  // Loading state
   if (channelLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
           <p className="text-muted-foreground">Loading channel...</p>
         </div>
       </div>
     );
   }
 
-  // Error states
   if (channelError || !channelData) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -66,14 +81,10 @@ export default function ChannelPage() {
             <div className="text-center space-y-2">
               <h3 className="text-lg font-semibold">Channel Not Found</h3>
               <p className="text-sm text-muted-foreground">
-                The channel "{username}" does not exist or has been removed.
+                The channel &quot;{username}&quot; does not exist or has been removed.
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => window.history.back()}
-              className="mt-4"
-            >
+            <Button variant="outline" onClick={() => window.history.back()} className="mt-4">
               Go Back
             </Button>
           </CardContent>
@@ -85,7 +96,6 @@ export default function ChannelPage() {
   const { channel, assets, viewer } = channelData;
   const isFollowing = localFollowState ?? viewer.isFollowing;
 
-  // Banned state
   if (viewer.isBanned) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -98,9 +108,7 @@ export default function ChannelPage() {
                 You have been banned from this channel.
               </p>
               {viewer.banReason && (
-                <p className="text-sm text-muted-foreground">
-                  Reason: {viewer.banReason}
-                </p>
+                <p className="text-sm text-muted-foreground">Reason: {viewer.banReason}</p>
               )}
               {viewer.banExpiresAt && (
                 <p className="text-sm text-muted-foreground">
@@ -108,11 +116,7 @@ export default function ChannelPage() {
                 </p>
               )}
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => window.history.back()}
-              className="mt-4"
-            >
+            <Button variant="outline" onClick={() => window.history.back()} className="mt-4">
               Go Back
             </Button>
           </CardContent>
@@ -122,28 +126,29 @@ export default function ChannelPage() {
   }
 
   const isLive = channel.stream?.isLive;
-  const streamName = channel.stream?.name || `${channel.displayName || channel.user.name}'s Stream`;
+  const streamName =
+    channel.stream?.name || `${channel.displayName || channel.user.name}'s Stream`;
 
   return (
     <div className="space-y-6">
       {/* Channel Header */}
       <Card>
         <CardContent className="p-6">
-          {/* Banner */}
           {assets.bannerUrl && (
-            <div 
+            <div
               className="h-32 md:h-48 bg-cover bg-center rounded-lg mb-6"
               style={{ backgroundImage: `url(${assets.bannerUrl})` }}
             />
           )}
-          
-          {/* Channel Info */}
+
           <div className="flex flex-col md:flex-row gap-4 items-start">
             <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-background">
               <AvatarImage src={assets.avatarUrl} />
-              <AvatarFallback>{channel.displayName?.[0] || channel.user.name?.[0] || "?"}</AvatarFallback>
+              <AvatarFallback>
+                {channel.displayName?.[0] || channel.user.name?.[0] || "?"}
+              </AvatarFallback>
             </Avatar>
-            
+
             <div className="flex-1 space-y-3">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
@@ -152,7 +157,7 @@ export default function ChannelPage() {
                   </h1>
                   <p className="text-muted-foreground">@{channel.slug}</p>
                 </div>
-                
+
                 {!viewer.isOwner && (
                   <Button
                     onClick={handleFollowToggle}
@@ -171,7 +176,7 @@ export default function ChannelPage() {
                   </Button>
                 )}
               </div>
-              
+
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
@@ -182,14 +187,9 @@ export default function ChannelPage() {
                   <span>Joined {new Date(channel.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
-              
-              {channel.bio && (
-                <p className="text-sm leading-relaxed">{channel.bio}</p>
-              )}
-              
-              {channel.category && (
-                <Badge variant="secondary">{channel.category}</Badge>
-              )}
+
+              {channel.bio && <p className="text-sm leading-relaxed">{channel.bio}</p>}
+              {channel.category && <Badge variant="secondary">{channel.category}</Badge>}
             </div>
           </div>
         </CardContent>
@@ -201,23 +201,19 @@ export default function ChannelPage() {
           <CardTitle className="flex items-center gap-2">
             <Play className="h-5 w-5" />
             Stream Status
-            {isLive && (
-              <Badge variant="destructive" className="bg-red-500">
-                LIVE
-              </Badge>
-            )}
+            {isLive && <Badge variant="destructive" className="bg-red-500">LIVE</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLive ? (
-            <div className="space-y-4">
+            <>
               <div>
                 <h3 className="font-semibold">{streamName}</h3>
                 <p className="text-sm text-muted-foreground">
                   {channel.displayName || channel.user.name} is currently live!
                 </p>
               </div>
-              
+
               {/* Token Status */}
               {tokenLoading ? (
                 <div className="flex items-center gap-2">
@@ -232,24 +228,20 @@ export default function ChannelPage() {
                   </Button>
                 </div>
               ) : token ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-green-600">✓ Viewer token ready</p>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <p>WebSocket URL: {wsUrl}</p>
-                    <p>Room: {roomName}</p>
-                    <p>Token: {token.substring(0, 20)}...</p>
-                  </div>
-                </div>
+                <p className="text-sm text-green-600">✓ Token acquired</p>
               ) : null}
-              
+
               {/* Chat Settings */}
               {channel.stream && (
                 <div className="space-y-2">
                   <Separator />
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${channel.stream.isChatEnabled ? 'bg-green-500' : 'bg-red-500'}`} />
-                      <span>Chat {channel.stream.isChatEnabled ? 'Enabled' : 'Disabled'}</span>
+                      <div
+                        className={`h-2 w-2 rounded-full ${channel.stream.isChatEnabled ? "bg-green-500" : "bg-red-500"
+                          }`}
+                      />
+                      <span>Chat {channel.stream.isChatEnabled ? "Enabled" : "Disabled"}</span>
                     </div>
                     {channel.stream.isChatDelayed && (
                       <div className="flex items-center gap-2">
@@ -266,7 +258,7 @@ export default function ChannelPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </>
           ) : (
             <div className="text-center py-8 space-y-3">
               <div className="mx-auto h-12 w-12 bg-muted rounded-full flex items-center justify-center">
@@ -282,23 +274,37 @@ export default function ChannelPage() {
           )}
         </CardContent>
       </Card>
-      
-      {/* Placeholder for future stream player */}
-      {isLive && token && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Stream Player</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-              <div className="text-center space-y-2">
-                <Play className="h-12 w-12 mx-auto text-muted-foreground" />
-                <p className="text-muted-foreground">Stream player will be implemented here</p>
-                <p className="text-xs text-muted-foreground">Token and WebSocket connection ready</p>
+
+      {/* Stream Player */}
+      {isLive && token && roomName && wsUrl && (
+        viewer.isOwner ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="space-y-4">
+                <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Play className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">You're Live!</h3>
+                  <p className="text-muted-foreground">
+                    Your stream is currently broadcasting. Use your streaming software (OBS, etc.) to monitor your stream.
+                  </p>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p>Viewers can watch your stream at this page, but as the streamer, you should use your broadcasting software to see what you're streaming.</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          <StreamPlayer
+            token={token}
+            serverUrl={wsUrl}
+            roomName={roomName}
+            viewerName={username}
+            channelDisplayName={channel.displayName || channel.user.name}
+          />
+        )
       )}
     </div>
   );

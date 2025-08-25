@@ -13,6 +13,8 @@
     "@aws-sdk/cloudfront-signer": "^3.862.0",
     "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@clerk/nextjs": "^6.31.0",
+    "@livekit/components-react": "^2.9.14",
+    "@livekit/components-styles": "^1.1.6",
     "@prisma/client": "^6.14.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.10",

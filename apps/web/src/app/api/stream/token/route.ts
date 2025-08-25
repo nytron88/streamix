@@ -37,7 +37,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
     if (!expired) return errorResponse("You are banned from this channel", 403);
   }
 
-  const token = mintViewerToken({
+  const token = await mintViewerToken({
     viewerId,
     viewerName: user.name ?? null,
     roomName: channel.userId,

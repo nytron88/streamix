@@ -22,7 +22,7 @@ export function mintViewerToken({
     room: roomName,
     canSubscribe: true,
     canPublish: !subscribeOnly,
-    canPublishData: true,
+    canPublishData: !subscribeOnly, // Only allow data publishing for streamers
   });
 
   return at.toJwt();
