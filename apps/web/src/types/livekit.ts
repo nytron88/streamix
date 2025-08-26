@@ -4,4 +4,6 @@ export type ViewerTokenOpts = {
   viewerName?: string | null;
   ttlSeconds?: number;
   subscribeOnly?: boolean;
+  canPublishData?: boolean;
+  metadata?: string;
 };

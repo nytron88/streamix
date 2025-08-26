@@ -10,13 +10,15 @@ import {
     BarChart3,
     Home,
     Key,
-    MessageCircle
+    MessageCircle,
+    Video
 } from "lucide-react";
 
 const dashboardSidebarItems = [
     { icon: Home, label: "Home", href: "/home" },
     { icon: User, label: "Profile", href: "/dashboard" },
     { icon: Key, label: "Keys", href: "/dashboard/keys" },
+    { icon: Video, label: "My Stream", href: "/dashboard/stream" },
     { icon: MessageCircle, label: "Chat", href: "/dashboard/chat" },
     { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
     { icon: DollarSign, label: "Earnings", href: "/dashboard/earnings" },

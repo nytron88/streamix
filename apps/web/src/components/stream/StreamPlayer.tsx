@@ -25,6 +25,7 @@ import {
     Minimize,
     Users2
 } from "lucide-react";
+import { StreamChat } from "./StreamChat";
 
 type StreamPlayerProps = {
     token: string;
@@ -32,6 +33,12 @@ type StreamPlayerProps = {
     roomName: string;
     viewerName?: string;
     channelDisplayName?: string;
+    chatSettings?: {
+        isChatEnabled: boolean;
+        isChatDelayed: boolean;
+        isChatFollowersOnly: boolean;
+    };
+    ownerMode?: boolean;
 };
 
 type ControlBarProps = {
@@ -392,6 +399,8 @@ export function StreamPlayer({
     roomName,
     viewerName,
     channelDisplayName,
+    chatSettings,
+    ownerMode = false,
 }: StreamPlayerProps) {
     if (!serverUrl) {
         return (
@@ -422,7 +431,43 @@ export function StreamPlayer({
                 },
             }}
         >
-            <StreamContent channelDisplayName={channelDisplayName} />
+            {ownerMode ? (
+                // Owner layout: Stream + Chat with different proportions 
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Stream Player for Owner */}
+                    <div className="lg:col-span-2">
+                        <StreamContent channelDisplayName={channelDisplayName} />
+                    </div>
+
+                    {/* Chat for Owner */}
+                    <div className="lg:col-span-1">
+                        <div className="h-[500px] lg:h-[600px]">
+                            <StreamChat
+                                channelDisplayName={channelDisplayName}
+                                chatSettings={chatSettings}
+                            />
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                // Viewer layout: Stream + Chat  
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                    {/* Stream Player */}
+                    <div className="lg:col-span-3">
+                        <StreamContent channelDisplayName={channelDisplayName} />
+                    </div>
+
+                    {/* Chat */}
+                    <div className="lg:col-span-1">
+                        <div className="h-[500px] lg:h-[600px]">
+                            <StreamChat
+                                channelDisplayName={channelDisplayName}
+                                chatSettings={chatSettings}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </LiveKitRoom>
     );
 }

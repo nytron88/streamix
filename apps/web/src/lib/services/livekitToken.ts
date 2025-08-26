@@ -10,11 +10,14 @@ export function mintViewerToken({
   viewerName,
   ttlSeconds = 600,
   subscribeOnly = true,
+  canPublishData = false,
+  metadata,
 }: ViewerTokenOpts) {
   const at = new AccessToken(LK_KEY, LK_SECRET, {
     identity: viewerId,
     ttl: ttlSeconds,
     name: viewerName ?? undefined,
+    metadata: metadata,
   });
 
   at.addGrant({
@@ -22,7 +25,7 @@ export function mintViewerToken({
     room: roomName,
     canSubscribe: true,
     canPublish: !subscribeOnly,
-    canPublishData: !subscribeOnly, // Only allow data publishing for streamers
+    canPublishData: canPublishData, // Allow data publishing based on chat permissions
   });
 
   return at.toJwt();

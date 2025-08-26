@@ -135,21 +135,41 @@ export default function ChannelPage() {
         token && roomName && wsUrl ? (
           <div className="space-y-4">
             {viewer.isOwner ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <div className="space-y-4">
-                    <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Play className="h-8 w-8 text-primary" />
+              <div className="space-y-4">
+                {/* Owner Status Card */}
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <div className="space-y-4">
+                      <div className="mx-auto h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Play className="h-8 w-8 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">You're Live!</h3>
+                        <p className="text-muted-foreground">
+                          Your stream is currently broadcasting. Monitor your chat and interact with your viewers below.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">You're Live!</h3>
-                      <p className="text-muted-foreground">
-                        Your stream is currently broadcasting. Use your streaming software (OBS, etc.) to monitor your stream.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Chat for Channel Owner */}
+                <div className="w-full max-w-4xl mx-auto">
+                  <StreamPlayer
+                    token={token}
+                    serverUrl={wsUrl}
+                    roomName={roomName}
+                    viewerName={username}
+                    channelDisplayName={channel.displayName || channel.user.name}
+                    chatSettings={channel.stream ? {
+                      isChatEnabled: channel.stream.isChatEnabled,
+                      isChatDelayed: channel.stream.isChatDelayed,
+                      isChatFollowersOnly: channel.stream.isChatFollowersOnly,
+                    } : undefined}
+                    ownerMode={true}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="space-y-4">
                 {/* Stream Title */}
@@ -160,14 +180,19 @@ export default function ChannelPage() {
                   </p>
                 </div>
 
-                {/* Stream Player */}
-                <div className="w-full max-w-6xl mx-auto">
+                {/* Stream Player with Chat */}
+                <div className="w-full max-w-7xl mx-auto">
                   <StreamPlayer
                     token={token}
                     serverUrl={wsUrl}
                     roomName={roomName}
                     viewerName={username}
                     channelDisplayName={channel.displayName || channel.user.name}
+                    chatSettings={channel.stream ? {
+                      isChatEnabled: channel.stream.isChatEnabled,
+                      isChatDelayed: channel.stream.isChatDelayed,
+                      isChatFollowersOnly: channel.stream.isChatFollowersOnly,
+                    } : undefined}
                   />
                 </div>
 
@@ -185,8 +210,8 @@ export default function ChannelPage() {
                           </Avatar>
                         </Link>
                         <div>
-                          <Link 
-                            href={`/channel/${channel.slug || channel.id}`} 
+                          <Link
+                            href={`/channel/${channel.slug || channel.id}`}
                             className="hover:text-primary transition-colors"
                           >
                             <h3 className="font-semibold cursor-pointer">
@@ -198,7 +223,7 @@ export default function ChannelPage() {
                           </p>
                         </div>
                       </div>
-                      
+
                       {!viewer.isOwner && (
                         <Button
                           onClick={handleFollowToggle}
