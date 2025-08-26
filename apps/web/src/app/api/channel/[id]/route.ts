@@ -33,7 +33,7 @@ export const GET = withLoggerAndErrorHandler(
       }
 
       // Find channel by slug
-      const channel = await prisma.channel.findUnique({
+      let channel = await prisma.channel.findUnique({
         where: { slug },
         select: {
           id: true,
@@ -73,6 +73,55 @@ export const GET = withLoggerAndErrorHandler(
           },
         },
       });
+
+      // If not found by slug, try to find by displayName or user name as fallback for channels without slugs
+      if (!channel) {
+        channel = await prisma.channel.findFirst({
+          where: {
+            OR: [
+              { displayName: { equals: slug, mode: "insensitive" } },
+              { user: { name: { equals: slug, mode: "insensitive" } } },
+            ],
+          },
+          select: {
+            id: true,
+            userId: true,
+            slug: true,
+            displayName: true,
+            bio: true,
+            category: true,
+            avatarS3Key: true,
+            bannerS3Key: true,
+            createdAt: true,
+            updatedAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                imageUrl: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
+            stream: {
+              select: {
+                isLive: true,
+                isChatEnabled: true,
+                isChatDelayed: true,
+                isChatFollowersOnly: true,
+                name: true,
+                thumbnailS3Key: true,
+              },
+            },
+            _count: {
+              select: {
+                follows: true,
+              },
+            },
+          },
+        });
+      }
 
       if (!channel) {
         return errorResponse("Channel not found", 404);
