@@ -44,6 +44,8 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       return { channelId: channel.id, removed: del.count > 0 };
     });
 
+    // Clear relevant caches after unbanning a user
+    // Note: We don't clear channel cache since counts are fetched fresh each time
     await Promise.allSettled([
       redis.del(`bans:channel:${result.channelId}`),
       redis.del(`followers:${result.channelId}`),

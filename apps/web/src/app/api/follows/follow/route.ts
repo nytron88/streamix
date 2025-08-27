@@ -49,7 +49,8 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       };
     });
 
-    // best-effort cache invalidation
+    // Clear relevant caches after following a channel
+    // Note: We don't clear channel cache since counts are fetched fresh each time
     await Promise.allSettled([
       redis.del(`follows:following:${userId}`),
       redis.del(`recs:channels:${userId}`),

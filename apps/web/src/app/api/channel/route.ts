@@ -143,6 +143,20 @@ export const PATCH = withLoggerAndErrorHandler(async (request: NextRequest) => {
         if (Object.keys(fieldsToUpdate).length === 0) {
           const currentChannel = await tx.channel.findUnique({
             where: { userId },
+            include: {
+              _count: {
+                select: {
+                  follows: true,
+                  subs: {
+                    where: {
+                      status: {
+                        in: ['ACTIVE', 'CANCEL_SCHEDULED']
+                      }
+                    }
+                  }
+                }
+              }
+            }
           });
 
           if (!currentChannel) throw new Error("Channel not found");
@@ -157,6 +171,20 @@ export const PATCH = withLoggerAndErrorHandler(async (request: NextRequest) => {
         const ch = await tx.channel.update({
           where: { userId },
           data: fieldsToUpdate,
+          include: {
+            _count: {
+              select: {
+                follows: true,
+                subs: {
+                  where: {
+                    status: {
+                      in: ['ACTIVE', 'CANCEL_SCHEDULED']
+                    }
+                  }
+                }
+              }
+            }
+          }
         });
 
         return {
@@ -181,14 +209,25 @@ export const PATCH = withLoggerAndErrorHandler(async (request: NextRequest) => {
     }
 
     const payload = {
-      channel: updatedChannel,
+      channel: {
+        ...updatedChannel,
+        followerCount: updatedChannel._count.follows,
+        subscriberCount: updatedChannel._count.subs,
+      },
       assets: {
         avatarUrl: getAvatarUrl(updatedChannel, user),
         bannerUrl: getBannerUrl(updatedChannel),
       },
     };
 
+    // Update user's channel cache
     await redis.set(cacheKey, JSON.stringify(payload), "EX", TTL_SECONDS);
+    
+    // Also clear public channel cache if slug was updated or exists
+    if (updatedChannel.slug) {
+      await redis.del(`channel:slug:${updatedChannel.slug}`);
+    }
+    
     return successResponse("Channel updated successfully", 200, payload);
   } catch (err) {
     return errorResponse("Error while updating channel", 500, {

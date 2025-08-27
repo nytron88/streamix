@@ -37,8 +37,6 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
         where: { userId, channelId },
       });
 
-      console.log("count", count);
-
       return {
         unfollowed: count > 0,
         channel: {
@@ -49,6 +47,8 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       };
     });
 
+    // Clear relevant caches after unfollowing a channel
+    // Note: We don't clear channel cache since counts are fetched fresh each time
     await Promise.allSettled([
       redis.del(`follows:following:${userId}`),
       redis.del(`recs:channels:${userId}`),
