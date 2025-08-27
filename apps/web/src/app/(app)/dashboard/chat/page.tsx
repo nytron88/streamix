@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
     MessageCircle,
     Users,
@@ -14,7 +13,8 @@ import {
     Shield,
     Settings,
     Save,
-    RotateCcw
+    RotateCcw,
+    Star
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -27,11 +27,13 @@ export default function ChatSettingsPage() {
         isChatEnabled: true,
         isChatDelayed: false,
         isChatFollowersOnly: false,
+        isChatSubscribersOnly: false,
     });
     const [originalSettings, setOriginalSettings] = useState<ChatSettingsInput>({
         isChatEnabled: true,
         isChatDelayed: false,
         isChatFollowersOnly: false,
+        isChatSubscribersOnly: false,
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -203,6 +205,30 @@ export default function ChatSettingsPage() {
                             id="followers-only"
                             checked={settings.isChatFollowersOnly}
                             onCheckedChange={(checked) => handleSettingChange("isChatFollowersOnly", checked)}
+                            disabled={!settings.isChatEnabled}
+                        />
+                    </div>
+
+                    {/* Subscribers Only */}
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <Star className="h-4 w-4 text-muted-foreground" />
+                                <Label htmlFor="subscribers-only" className="text-base font-medium">
+                                    Subscribers-Only Chat
+                                </Label>
+                                <Badge variant={settings.isChatSubscribersOnly ? "default" : "outline"}>
+                                    {settings.isChatSubscribersOnly ? "Subscribers Only" : "Everyone"}
+                                </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                Only allow subscribers to send messages in chat
+                            </p>
+                        </div>
+                        <Switch
+                            id="subscribers-only"
+                            checked={settings.isChatSubscribersOnly}
+                            onCheckedChange={(checked) => handleSettingChange("isChatSubscribersOnly", checked)}
                             disabled={!settings.isChatEnabled}
                         />
                     </div>

@@ -229,6 +229,7 @@ model Stream {
   isChatEnabled           Boolean @default(true)
   isChatDelayed           Boolean @default(false)
   isChatFollowersOnly     Boolean @default(false)
+  isChatSubscribersOnly   Boolean @default(false)
 
   // Optional pointer to the current open session (helps joins)
   currentSessionId String?   @unique

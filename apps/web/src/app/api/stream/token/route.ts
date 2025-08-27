@@ -30,6 +30,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
           isChatEnabled: true,
           isChatDelayed: true,
           isChatFollowersOnly: true,
+          isChatSubscribersOnly: true,
         },
       },
     },
@@ -56,6 +57,24 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
     select: { id: true },
   });
 
+  // Check if user is subscribed to this channel (for subscriber-only chat)
+  const isSubscribed = await prisma.subscription.findUnique({
+    where: {
+      userId_channelId: {
+        userId: viewerId,
+        channelId: channel.id,
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  const hasActiveSubscription =
+    isSubscribed &&
+    ["ACTIVE", "CANCEL_SCHEDULED"].includes(isSubscribed.status);
+
   // Check if user is the channel owner
   const isChannelOwner = channel.userId === viewerId;
 
@@ -64,8 +83,8 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const canChat = chatSettings
     ? chatSettings.isChatEnabled &&
       (isChannelOwner ||
-        !chatSettings.isChatFollowersOnly ||
-        Boolean(isFollowing))
+        ((!chatSettings.isChatFollowersOnly || Boolean(isFollowing)) &&
+          (!chatSettings.isChatSubscribersOnly || hasActiveSubscription)))
     : false;
 
   // Generate unique identity for this connection to allow multiple devices/tabs
@@ -79,6 +98,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
     username: user.name || "Anonymous",
     isChannelOwner,
     isFollowing: Boolean(isFollowing),
+    isSubscribed: hasActiveSubscription,
     canChat,
   };
 
@@ -87,7 +107,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
     viewerName: user.name ?? null,
     roomName: channel.userId,
     subscribeOnly: true,
-    canPublishData: canChat, // Allow data publishing (chat) based on permissions
+    canPublishData: Boolean(canChat), // Allow data publishing (chat) based on permissions
     metadata: JSON.stringify(userMetadata),
     ttlSeconds: 600,
   });
