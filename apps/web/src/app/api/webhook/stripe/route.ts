@@ -2,6 +2,7 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { successResponse, errorResponse } from "@/lib/utils/responseWrapper";
 import stripe from "@/lib/stripe/stripe";
 import prisma from "@/lib/prisma/prisma";
+import redis from "@/lib/redis/redis";
 import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
@@ -78,6 +79,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     },
   });
 
+  // Clear user subscriptions cache
+  await Promise.allSettled([redis.del(`subscriptions:${userId}`)]);
+
   logger.info("Subscription created/upserted", {
     stripeSubscriptionId: subscription.id,
     userId,
@@ -107,6 +111,18 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     throw new Error("No matching subscription found for update");
   }
 
+  // Clear cache for the affected user
+  const subscriptionRecord = await prisma.subscription.findUnique({
+    where: { stripeSubId: subscription.id },
+    select: { userId: true },
+  });
+
+  if (subscriptionRecord) {
+    await Promise.allSettled([
+      redis.del(`subscriptions:${subscriptionRecord.userId}`),
+    ]);
+  }
+
   logger.info("Subscription updated event processed", {
     stripeSubscriptionId: subscription.id,
     status: subscription.status,
@@ -131,6 +147,18 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
       eventType: "customer.subscription.deleted",
     });
     throw new Error("No matching subscription found for delete");
+  }
+
+  // Clear cache for the affected user
+  const subscriptionRecord = await prisma.subscription.findUnique({
+    where: { stripeSubId: subscription.id },
+    select: { userId: true },
+  });
+
+  if (subscriptionRecord) {
+    await Promise.allSettled([
+      redis.del(`subscriptions:${subscriptionRecord.userId}`),
+    ]);
   }
 
   logger.info("Subscription deleted event processed", {

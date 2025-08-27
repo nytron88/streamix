@@ -17,11 +17,10 @@ interface SidebarContentProps {
 
 const sidebarItems = [
     { icon: Home, label: "Home", href: "/home" },
-    { icon: TrendingUp, label: "Browse", href: "/browse" },
-    { icon: Users, label: "Following", href: "/following" },
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-    { icon: Bell, label: "Notifications", href: "/notifications" },
+    { icon: Users, label: "Following", href: "/following" },
     { icon: CreditCard, label: "Subscriptions", href: "/subscriptions" },
+    { icon: Bell, label: "Notifications", href: "/notifications" },
 ];
 
 export function SidebarContent({ recommendedChannels, loading }: SidebarContentProps) {
