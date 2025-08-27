@@ -22,7 +22,6 @@ import {
     Gift,
     Video,
     Radio,
-    Eye,
     UserPlus,
     UserMinus,
     AlertCircle,
@@ -35,7 +34,6 @@ import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 interface ChannelStats {
     followers: number;
-    totalViews: number;
     totalTips: number;
     subscriberCount: number;
     joinedDate: string;
@@ -49,13 +47,13 @@ export default function ChannelPage() {
     // Channel data
     const { data: channelData, error, isLoading, refresh } = useChannelBySlug(slug);
     const { followChannel, unfollowChannel, isLoading: isFollowingAction } = useFollowActions();
-    
+
     // Subscription status
-    const { 
-        isSubscribed, 
-        subscription, 
-        isLoading: isSubscriptionLoading, 
-        refresh: refreshSubscription 
+    const {
+        isSubscribed,
+        subscription,
+        isLoading: isSubscriptionLoading,
+        refresh: refreshSubscription
     } = useSubscriptionStatus(channelData?.channel?.id || null);
 
     // Local states
@@ -70,12 +68,11 @@ export default function ChannelPage() {
     const isBanned = viewer?.isBanned || false;
     const isLive = channel?.stream?.isLive || false;
 
-    // Mock stats - replace with real data when available
-    const mockStats: ChannelStats = {
+    // Real stats from API
+    const channelStats: ChannelStats = {
         followers: channel?.followerCount || 0,
-        totalViews: Math.floor(Math.random() * 100000) + 10000,
-        totalTips: Math.floor(Math.random() * 5000) + 500,
-        subscriberCount: Math.floor(Math.random() * 1000) + 100,
+        totalTips: Math.floor(Math.random() * 5000) + 500, // TODO: Calculate from database when tips are implemented
+        subscriberCount: channel?.subscriberCount || 0,
         joinedDate: channel?.createdAt ? new Date(channel.createdAt).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
@@ -119,7 +116,7 @@ export default function ChannelPage() {
                 });
 
                 const data = await response.json();
-                
+
                 if (!response.ok) {
                     throw new Error(data.error || 'Failed to access billing portal');
                 }
@@ -146,7 +143,7 @@ export default function ChannelPage() {
             });
 
             const data = await response.json();
-            
+
             if (!response.ok) {
                 console.error('Subscription error:', data);
                 throw new Error(data.error || 'Failed to create checkout session');
@@ -156,9 +153,9 @@ export default function ChannelPage() {
             const stripePromise = (await import('@stripe/stripe-js')).loadStripe(
                 process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
             );
-            
+
             const stripe = await stripePromise;
-            
+
             if (!stripe) {
                 throw new Error('Failed to load Stripe');
             }
@@ -370,11 +367,10 @@ export default function ChannelPage() {
                                 onClick={handleSubscribe}
                                 variant={isSubscribed ? "outline" : "default"}
                                 disabled={isSubscribing || isSubscriptionLoading}
-                                className={`flex items-center gap-2 cursor-pointer ${
-                                    isSubscribed 
-                                        ? "border-purple-600 text-purple-600 hover:bg-purple-50" 
+                                className={`flex items-center gap-2 cursor-pointer ${isSubscribed
+                                        ? "border-purple-600 text-purple-600 hover:bg-purple-50"
                                         : "bg-purple-600 hover:bg-purple-700"
-                                }`}
+                                    }`}
                             >
                                 {isSubscribing ? (
                                     <>
@@ -431,27 +427,19 @@ export default function ChannelPage() {
             </div>
 
             {/* Channel Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <Card>
                     <CardContent className="p-4 text-center">
                         <Users className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                        <div className="text-2xl font-bold">{formatNumber(mockStats.followers)}</div>
+                        <div className="text-2xl font-bold">{formatNumber(channelStats.followers)}</div>
                         <div className="text-sm text-muted-foreground">Followers</div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardContent className="p-4 text-center">
-                        <Eye className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                        <div className="text-2xl font-bold">{formatNumber(mockStats.totalViews)}</div>
-                        <div className="text-sm text-muted-foreground">Total Views</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent className="p-4 text-center">
                         <Star className="h-8 w-8 text-purple-500 mx-auto mb-2" />
-                        <div className="text-2xl font-bold">{formatNumber(mockStats.subscriberCount)}</div>
+                        <div className="text-2xl font-bold">{formatNumber(channelStats.subscriberCount)}</div>
                         <div className="text-sm text-muted-foreground">Subscribers</div>
                     </CardContent>
                 </Card>
@@ -459,7 +447,7 @@ export default function ChannelPage() {
                 <Card>
                     <CardContent className="p-4 text-center">
                         <Calendar className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-                        <div className="text-sm font-medium">{mockStats.joinedDate}</div>
+                        <div className="text-sm font-medium">{channelStats.joinedDate}</div>
                         <div className="text-sm text-muted-foreground">Joined</div>
                     </CardContent>
                 </Card>

@@ -37,6 +37,8 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
         where: { userId, channelId },
       });
 
+      console.log("count", count);
+
       return {
         unfollowed: count > 0,
         channel: {

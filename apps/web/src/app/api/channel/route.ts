@@ -28,18 +28,53 @@ export const GET = withLoggerAndErrorHandler(async () => {
       );
     }
 
-    let channel = await prisma.channel.findUnique({ where: { userId } });
+    let channel = await prisma.channel.findUnique({
+      where: { userId },
+      include: {
+        _count: {
+          select: {
+            follows: true,
+            subs: {
+              where: {
+                status: {
+                  in: ["ACTIVE", "CANCEL_SCHEDULED"],
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
     if (!channel) {
       channel = await prisma.channel.create({
         data: {
           userId,
           displayName: user?.name ?? null,
         },
+        include: {
+          _count: {
+            select: {
+              follows: true,
+              subs: {
+                where: {
+                  status: {
+                    in: ["ACTIVE", "CANCEL_SCHEDULED"],
+                  },
+                },
+              },
+            },
+          },
+        },
       });
     }
 
     const payload = {
-      channel,
+      channel: {
+        ...channel,
+        followerCount: channel._count.follows,
+        subscriberCount: channel._count.subs,
+      },
       assets: {
         avatarUrl: getAvatarUrl(channel, user),
         bannerUrl: getBannerUrl(channel),
@@ -109,6 +144,7 @@ export const PATCH = withLoggerAndErrorHandler(async (request: NextRequest) => {
           const currentChannel = await tx.channel.findUnique({
             where: { userId },
           });
+
           if (!currentChannel) throw new Error("Channel not found");
 
           return {

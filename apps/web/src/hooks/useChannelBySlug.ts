@@ -11,6 +11,7 @@ type ChannelData = {
     bio: string;
     category: string;
     followerCount: number;
+    subscriberCount: number;
     createdAt: string;
     user: {
       id: string;

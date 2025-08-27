@@ -69,6 +69,13 @@ export const GET = withLoggerAndErrorHandler(
           _count: {
             select: {
               follows: true,
+              subs: {
+                where: {
+                  status: {
+                    in: ["ACTIVE", "CANCEL_SCHEDULED"],
+                  },
+                },
+              },
             },
           },
         },
@@ -117,6 +124,13 @@ export const GET = withLoggerAndErrorHandler(
             _count: {
               select: {
                 follows: true,
+                subs: {
+                  where: {
+                    status: {
+                      in: ["ACTIVE", "CANCEL_SCHEDULED"],
+                    },
+                  },
+                },
               },
             },
           },
@@ -166,6 +180,7 @@ export const GET = withLoggerAndErrorHandler(
           bio: channel.bio,
           category: channel.category,
           followerCount: channel._count.follows,
+          subscriberCount: channel._count.subs,
           createdAt: channel.createdAt,
           user: channel.user,
           stream: channel.stream,
