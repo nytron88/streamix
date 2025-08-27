@@ -6,6 +6,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   ProfileHeader,
   ProfileCard,
+  ProfileStats,
   ProfileLoadingState,
   ProfileErrorState,
 } from "./index";

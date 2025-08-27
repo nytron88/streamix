@@ -5,8 +5,15 @@ import { ChannelIdSchema } from "@/schemas/channelIdSchema";
 
 export type Channel = PrismaChannel;
 
+export type ChannelWithCounts = Omit<Channel, 'createdAt' | 'updatedAt'> & {
+  followerCount: number;
+  subscriberCount: number;
+  createdAt: string;  // API returns dates as strings
+  updatedAt: string;  // API returns dates as strings
+};
+
 export type ChannelPayload = {
-  channel: Channel;
+  channel: ChannelWithCounts;
   assets: {
     avatarUrl: string;
     bannerUrl: string;

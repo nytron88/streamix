@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ProfileBannerAvatar } from "./ProfileBannerAvatar";
 import { ProfileDetailsForm } from "./ProfileDetailsForm";
+import { ProfileStats } from "./ProfileStats";
 import { ChannelPayload } from "@/types/channel";
 
 interface EditForm {
@@ -44,6 +45,15 @@ export function ProfileCard({
           uploading={uploading}
           pendingUploads={pendingUploads}
           onImageClick={onImageClick}
+        />
+
+        <Separator className="my-6" />
+
+        {/* Channel Stats */}
+        <ProfileStats
+          followerCount={channel.followerCount || 0}
+          subscriberCount={channel.subscriberCount || 0}
+          joinedDate={channel.createdAt}
         />
 
         <Separator className="my-6" />

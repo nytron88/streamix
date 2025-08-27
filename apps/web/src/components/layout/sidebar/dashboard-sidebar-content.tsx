@@ -4,14 +4,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
     User,
-    Play,
     Bell,
     DollarSign,
-    BarChart3,
     Home,
     Key,
     MessageCircle,
-    Video
+    Video,
+    Shield
 } from "lucide-react";
 
 const dashboardSidebarItems = [
@@ -22,7 +21,8 @@ const dashboardSidebarItems = [
     { icon: MessageCircle, label: "Chat", href: "/dashboard/chat" },
     { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
     { icon: DollarSign, label: "Earnings", href: "/dashboard/earnings" },
-    { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
+    { icon: Video, label: "Manage Vods", href: "/dashboard/vods" },
+    { icon: Shield, label: "Manage Bans", href: "/dashboard/bans" },
 ];
 
 export function DashboardSidebarContent() {

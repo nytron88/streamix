@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Channel } from "@prisma/client";
+import { ChannelWithCounts } from "@/types/channel";
 
 interface EditForm {
   displayName: string;
@@ -10,7 +10,7 @@ interface EditForm {
 }
 
 interface ProfileDetailsFormProps {
-  channel: Channel;
+  channel: ChannelWithCounts;
   isEditing: boolean;
   editForm: EditForm;
   onInputChange: (field: keyof EditForm, value: string) => void;
