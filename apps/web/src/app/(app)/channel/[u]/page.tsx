@@ -31,6 +31,7 @@ import {
 import { toast } from "sonner";
 import { useChannelBySlug } from "@/hooks/useChannelBySlug";
 import { useFollowActions } from "@/hooks/useFollowActions";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 interface ChannelStats {
     followers: number;
@@ -48,9 +49,16 @@ export default function ChannelPage() {
     // Channel data
     const { data: channelData, error, isLoading, refresh } = useChannelBySlug(slug);
     const { followChannel, unfollowChannel, isLoading: isFollowingAction } = useFollowActions();
+    
+    // Subscription status
+    const { 
+        isSubscribed, 
+        subscription, 
+        isLoading: isSubscriptionLoading, 
+        refresh: refreshSubscription 
+    } = useSubscriptionStatus(channelData?.channel?.id || null);
 
     // Local states
-    const [isSubscribed, setIsSubscribed] = useState(false);
     const [isSubscribing, setIsSubscribing] = useState(false);
 
     // Derived states
@@ -93,18 +101,78 @@ export default function ChannelPage() {
         }
     };
 
-    // Handle subscribe action (placeholder)
+    // Handle subscribe action via Stripe
     const handleSubscribe = async () => {
-        if (!channel) return;
+        if (!channel || !user) {
+            toast.error("Please sign in to subscribe");
+            return;
+        }
+
+        if (isSubscribed) {
+            // Redirect to billing portal for subscription management
+            try {
+                const response = await fetch('/api/stripe/create-portal-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to access billing portal');
+                }
+
+                window.open(data.payload.url, '_blank');
+            } catch (error: any) {
+                console.error('Subscription error:', error);
+                toast.error(error.message || "Failed to access billing portal");
+            }
+            return;
+        }
 
         setIsSubscribing(true);
         try {
-            // TODO: Implement subscription API call
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Mock delay
-            setIsSubscribed(!isSubscribed);
-            toast.success(isSubscribed ? 'Unsubscribed successfully' : 'Subscribed successfully!');
+            // Create Stripe checkout session for this channel
+            const response = await fetch('/api/stripe/create-checkout-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    channelId: channel.id,
+                }),
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                console.error('Subscription error:', data);
+                throw new Error(data.error || 'Failed to create checkout session');
+            }
+
+            // Redirect to Stripe checkout
+            const stripePromise = (await import('@stripe/stripe-js')).loadStripe(
+                process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+            );
+            
+            const stripe = await stripePromise;
+            
+            if (!stripe) {
+                throw new Error('Failed to load Stripe');
+            }
+
+            const { error } = await stripe.redirectToCheckout({
+                sessionId: data.payload.id,
+            });
+
+            if (error) {
+                throw new Error(error.message);
+            }
         } catch (error: any) {
-            toast.error("Subscription feature coming soon!");
+            console.error('Subscription error:', error);
+            toast.error(error.message || "Failed to start subscription process");
         } finally {
             setIsSubscribing(false);
         }
@@ -301,23 +369,27 @@ export default function ChannelPage() {
                             <Button
                                 onClick={handleSubscribe}
                                 variant={isSubscribed ? "outline" : "default"}
-                                disabled={isSubscribing}
-                                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 cursor-pointer"
+                                disabled={isSubscribing || isSubscriptionLoading}
+                                className={`flex items-center gap-2 cursor-pointer ${
+                                    isSubscribed 
+                                        ? "border-purple-600 text-purple-600 hover:bg-purple-50" 
+                                        : "bg-purple-600 hover:bg-purple-700"
+                                }`}
                             >
                                 {isSubscribing ? (
                                     <>
                                         <Star className="h-4 w-4 animate-spin" />
-                                        {isSubscribed ? 'Unsubscribing...' : 'Subscribing...'}
+                                        Processing...
                                     </>
                                 ) : isSubscribed ? (
                                     <>
                                         <Star className="h-4 w-4 fill-current" />
-                                        Subscribed
+                                        Manage Subscription
                                     </>
                                 ) : (
                                     <>
                                         <Star className="h-4 w-4" />
-                                        Subscribe
+                                        Subscribe $4.99/month
                                     </>
                                 )}
                             </Button>
