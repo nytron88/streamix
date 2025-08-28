@@ -97,8 +97,74 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
       return successResponse("Following fetched", 200, emptyPayload);
     }
 
+    // Get comprehensive bidirectional blocking using the same logic as recommendations
+    const userChannel = await prisma.channel.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    // Get all mutual ban situations
+    const allBans = await prisma.ban.findMany({
+      where: {
+        OR: [
+          // Bans where this user is banned from other channels
+          {
+            userId,
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          },
+          // Bans where this user has banned others from their channel
+          userChannel ? {
+            channelId: userChannel.id,
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          } : {},
+        ].filter(Boolean),
+      },
+      select: {
+        userId: true,
+        channelId: true,
+      },
+    });
+
+    // Extract all blocked channel IDs and user IDs
+    const blockedChannelIds = new Set<string>();
+    const blockedUserIds = new Set<string>();
+
+    allBans.forEach((ban) => {
+      if (ban.userId === userId) {
+        // This user is banned from ban.channelId
+        blockedChannelIds.add(ban.channelId);
+      } else {
+        // This user banned ban.userId, so block all their channels
+        blockedUserIds.add(ban.userId);
+      }
+    });
+
+    // Get all channels owned by blocked users
+    if (blockedUserIds.size > 0) {
+      const blockedUserChannels = await prisma.channel.findMany({
+        where: { userId: { in: Array.from(blockedUserIds) } },
+        select: { id: true },
+      });
+      blockedUserChannels.forEach((channel) => {
+        blockedChannelIds.add(channel.id);
+      });
+    }
+
+    const allBlockedChannelIds = Array.from(blockedChannelIds);
+    
     const channels = await prisma.channel.findMany({
-      where: { id: { in: channelIds } },
+      where: { 
+        id: { 
+          in: channelIds,
+          notIn: allBlockedChannelIds.length > 0 ? allBlockedChannelIds : [],
+        },
+      },
       select: {
         id: true,
         slug: true,

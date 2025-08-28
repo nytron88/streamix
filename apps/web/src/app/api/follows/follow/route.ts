@@ -36,6 +36,24 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       if (channel.userId === userId)
         throw new Error("You cannot follow your own channel");
 
+      // Check if user is banned from this channel
+      const ban = await tx.ban.findUnique({
+        where: {
+          channelId_userId: {
+            channelId: channelId,
+            userId: userId,
+          },
+        },
+        select: { expiresAt: true },
+      });
+
+      if (ban) {
+        const expired = ban.expiresAt && ban.expiresAt < new Date();
+        if (!expired) {
+          throw new Error("You cannot follow this channel because you are banned");
+        }
+      }
+
       await tx.follow.upsert({
         where: { userId_channelId: { userId, channelId } },
         update: {},

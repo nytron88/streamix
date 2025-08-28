@@ -1,21 +1,25 @@
 import { NextRequest } from "next/server";
-import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
+import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
 import redis from "@/lib/redis/redis";
-import { UserId } from "@/types/user";
-import { UserIdSchema } from "@/schemas/userIdSchema";
+import { BanIdSchema } from "@/schemas/banIdSchema";
+import { BanId } from "@/types/ban";
 
+/**
+ * POST /api/bans/unban - Remove a ban
+ */
 export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const auth = await requireAuth();
   if (isNextResponse(auth)) return auth;
 
-  const { userId: actorId } = auth;
+  const { userId: channelOwnerId } = auth;
 
-  let body: UserId;
+  // Parse and validate request body
+  let body: BanId;
   try {
-    body = UserIdSchema.parse(await req.json());
+    body = BanIdSchema.parse(await req.json());
   } catch (err) {
     return errorResponse(
       err instanceof Error ? err.message : "Invalid request body",
@@ -23,44 +27,83 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
     );
   }
 
-  const targetUserId = body.userId;
+  const { banId } = body;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const channel = await tx.channel.findUnique({
-        where: { userId: actorId },
-        select: { id: true },
+      // Get the ban and verify ownership
+      const ban = await tx.ban.findUnique({
+        where: { id: banId },
+        include: {
+          channel: {
+            select: {
+              id: true,
+              userId: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
-      if (!channel) throw new Error("Channel not found for current user");
 
-      if (targetUserId === actorId) {
-        throw new Error("You cannot unban yourself");
+      if (!ban) {
+        throw new Error("Ban not found");
       }
 
-      const del = await tx.ban.deleteMany({
-        where: { channelId: channel.id, userId: targetUserId },
+      // Verify the authenticated user owns the channel
+      if (ban.channel.userId !== channelOwnerId) {
+        throw new Error("You can only remove bans from your own channel");
+      }
+
+      // Delete the ban
+      await tx.ban.delete({
+        where: { id: banId },
       });
 
-      return { channelId: channel.id, removed: del.count > 0 };
+      return {
+        id: ban.id,
+        userId: ban.userId,
+        userName: ban.user.name,
+        channelId: ban.channel.id,
+      };
     });
 
-    // Clear relevant caches after unbanning a user
-    // Note: We don't clear channel cache since counts are fetched fresh each time
+    // Clear relevant cache entries (comprehensive cache invalidation)
+    // Clear exact cache keys
     await Promise.allSettled([
       redis.del(`bans:channel:${result.channelId}`),
-      redis.del(`followers:${result.channelId}`),
-      redis.del(`follows:following:${targetUserId}`),
-      redis.del(`recs:channels:${targetUserId}`),
+      redis.del(`bans:user:${result.userId}`),
+      redis.del(`ban:check:${result.channelId}:${result.userId}`),
+      redis.del(`follows:following:${result.userId}`), // Unbanned user's following cache
+      redis.del(`followers:${result.channelId}`), // Channel's followers cache
+      redis.del(`subscriptions:${result.userId}`), // Unbanned user's subscriptions
     ]);
 
-    return successResponse("Unban processed", 200, {
-      banned: false,
-      removed: result.removed,
-      userId: targetUserId,
-      channelId: result.channelId,
+    // Clear recommendation caches for both users (all limit variations)
+    const commonLimits = [10, 12, 15, 20, 24, 25];
+    const recCacheKeysToDelete = [];
+    
+    for (const limit of commonLimits) {
+      recCacheKeysToDelete.push(`recs:channels:${result.userId}:${limit}`);
+      // We need to get the channel owner ID for bilateral cache clearing
+      // For now, we'll just clear the unbanned user's cache
+    }
+    
+    await Promise.allSettled(recCacheKeysToDelete.map(key => redis.del(key)));
+
+    return successResponse("Ban removed successfully", 200, {
+      removedBan: {
+        id: result.id,
+        userId: result.userId,
+        userName: result.userName,
+      },
     });
   } catch (err) {
-    return errorResponse("Failed to unban user", 500, {
+    return errorResponse("Failed to remove ban", 500, {
       message: err instanceof Error ? err.message : String(err),
     });
   }

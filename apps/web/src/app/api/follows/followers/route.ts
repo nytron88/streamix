@@ -68,9 +68,61 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
       };
     }
 
-    // Find follows
+    // Get comprehensive bidirectional blocking
+    const allBans = await prisma.ban.findMany({
+      where: {
+        OR: [
+          // Users banned from this channel
+          {
+            channelId: myChannel.id,
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          },
+          // Bans where the channel owner is banned (to find who banned them)
+          {
+            userId, // Channel owner is banned by others
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          },
+        ],
+      },
+      select: {
+        userId: true,
+        channelId: true,
+        channel: {
+          select: {
+            userId: true, // Owner of the channel where the ban exists
+          },
+        },
+      },
+    });
+
+    // Extract all blocked user IDs
+    const blockedUserIds = new Set<string>();
+    
+    allBans.forEach((ban) => {
+      if (ban.channelId === myChannel.id) {
+        // User banned from this channel
+        blockedUserIds.add(ban.userId);
+      } else if (ban.userId === userId) {
+        // Channel owner is banned by ban.channel.userId, so block that user
+        blockedUserIds.add(ban.channel.userId);
+      }
+    });
+
+    // Find follows excluding all blocked users
     const follows = await prisma.follow.findMany({
-      where: { channelId: myChannel.id, ...cursorWhere },
+      where: { 
+        channelId: myChannel.id, 
+        ...cursorWhere,
+        userId: {
+          notIn: Array.from(blockedUserIds),
+        },
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       select: { id: true, createdAt: true, userId: true },

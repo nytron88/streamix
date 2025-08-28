@@ -27,6 +27,7 @@ export const GET = withLoggerAndErrorHandler(async () => {
     }
 
     // Fetch all active subscriptions for the user
+    // Note: Subscriptions to banned channels are auto-cancelled during ban creation
     const subscriptions = await prisma.subscription.findMany({
       where: {
         userId,

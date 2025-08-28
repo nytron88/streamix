@@ -217,24 +217,50 @@ export const GET = withLoggerAndErrorHandler(
         select: { id: true },
       });
 
-      // Check if viewer is banned
-      const ban = await prisma.ban.findUnique({
+      // Check for bidirectional bans (either direction blocks access)
+      const viewerChannel = await prisma.channel.findUnique({
+        where: { userId: viewerId },
+        select: { id: true },
+      });
+
+      const bans = await prisma.ban.findMany({
         where: {
-          channelId_userId: {
-            channelId: channel.id,
-            userId: viewerId,
-          },
+          OR: [
+            // Viewer is banned from this channel
+            {
+              channelId: channel.id,
+              userId: viewerId,
+              OR: [
+                { expiresAt: null }, // Permanent ban
+                { expiresAt: { gt: new Date() } }, // Non-expired ban
+              ],
+            },
+            // Channel owner is banned from viewer's channel (mutual blocking)
+            viewerChannel ? {
+              channelId: viewerChannel.id,
+              userId: channel.userId,
+              OR: [
+                { expiresAt: null }, // Permanent ban
+                { expiresAt: { gt: new Date() } }, // Non-expired ban
+              ],
+            } : {},
+          ].filter(Boolean),
         },
         select: {
           id: true,
           reason: true,
           expiresAt: true,
+          userId: true,
+          channelId: true,
         },
       });
 
-      const isBanned = ban
-        ? !ban.expiresAt || ban.expiresAt > new Date()
-        : false;
+      // If ANY ban exists in either direction, block access completely
+      if (bans.length > 0) {
+        return errorResponse("Access denied. Channel is not available.", 403);
+      }
+
+      const isBanned = false; // No bans found
 
       const payload = {
         channel: {
@@ -257,8 +283,6 @@ export const GET = withLoggerAndErrorHandler(
         viewer: {
           isFollowing: Boolean(isFollowing),
           isBanned,
-          banReason: ban?.reason || null,
-          banExpiresAt: ban?.expiresAt || null,
           isOwner: channel.userId === viewerId,
         },
       };

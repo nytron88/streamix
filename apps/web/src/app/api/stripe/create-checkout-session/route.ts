@@ -50,7 +50,7 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
     return errorResponse("Channel ID is required", 400);
   }
 
-  // Verify channel exists
+  // Verify channel exists and user is not banned
   const channel = await prisma.channel.findUnique({
     where: { id: channelId },
     select: {
@@ -62,11 +62,26 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
           name: true,
         },
       },
+      bans: {
+        where: {
+          userId: userId,
+          OR: [
+            { expiresAt: null }, // Permanent ban
+            { expiresAt: { gt: new Date() } }, // Non-expired ban
+          ],
+        },
+        select: { id: true },
+      },
     },
   });
 
   if (!channel) {
     return errorResponse("Channel not found", 404);
+  }
+
+  // Prevent banned users from subscribing
+  if (channel.bans.length > 0) {
+    return errorResponse("You cannot subscribe to this channel because you are banned", 403);
   }
 
   const origin =

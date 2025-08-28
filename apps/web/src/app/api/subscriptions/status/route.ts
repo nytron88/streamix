@@ -18,6 +18,7 @@ export const GET = withLoggerAndErrorHandler(async (request: NextRequest) => {
   }
 
   // Check if user has an active subscription to this channel
+  // Note: Subscriptions are auto-cancelled when bans occur, so no need to check ban status
   const subscription = await prisma.subscription.findUnique({
     where: {
       userId_channelId: {

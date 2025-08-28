@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import prisma from "@/lib/prisma/prisma";
+import redis from "@/lib/redis/redis";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import { mintViewerToken } from "@/lib/services/livekitToken";
 
@@ -37,13 +38,55 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   });
   if (!channel) return errorResponse("Channel not found", 404);
 
-  const ban = await prisma.ban.findUnique({
-    where: { channelId_userId: { channelId: channel.id, userId: viewerId } },
-    select: { expiresAt: true },
-  });
-  if (ban) {
-    const expired = ban.expiresAt && ban.expiresAt < new Date();
-    if (!expired) return errorResponse("You are banned from this channel", 403);
+  // Check for bidirectional bans with caching
+  const banCacheKey = `ban:check:${channel.id}:${viewerId}`;
+  let isBanned = false;
+  
+  const cachedBanResult = await redis.get(banCacheKey);
+  if (cachedBanResult !== null) {
+    isBanned = cachedBanResult === "true";
+  } else {
+    // Get viewer's channel for bidirectional check
+    const viewerChannel = await prisma.channel.findUnique({
+      where: { userId: viewerId },
+      select: { id: true },
+    });
+
+    // Check for bans in either direction
+    const bans = await prisma.ban.findMany({
+      where: {
+        OR: [
+          // Viewer is banned from this channel
+          {
+            channelId: channel.id,
+            userId: viewerId,
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          },
+          // Channel owner is banned from viewer's channel (mutual blocking)
+          viewerChannel ? {
+            channelId: viewerChannel.id,
+            userId: channel.userId,
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          } : {},
+        ].filter(Boolean),
+      },
+      select: { id: true },
+    });
+
+    isBanned = bans.length > 0;
+    
+    // Cache the result for 5 minutes
+    await redis.setex(banCacheKey, 300, isBanned ? "true" : "false");
+  }
+  
+  if (isBanned) {
+    return errorResponse("Access denied. Stream is not available.", 403);
   }
 
   // Check if user is following this channel (for follower-only chat)

@@ -22,6 +22,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
   MessageCircle,
   Send,
   Users,
@@ -56,6 +66,13 @@ interface UserMetadata {
 export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps) {
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [banModalOpen, setBanModalOpen] = useState(false);
+  const [banTargetUser, setBanTargetUser] = useState<{userId: string, username: string} | null>(null);
+  const [banForm, setBanForm] = useState({
+    reason: "",
+    expiresAt: "",
+    isPermanent: false,
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { chatMessages, send, isSending } = useChat();
@@ -79,7 +96,9 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
   // Get user metadata from message
   const getUserMetadata = (message: ChatMessage): UserMetadata | null => {
     try {
-      return message.from?.metadata ? JSON.parse(message.from.metadata) : null;
+      // Check if message has participant with metadata
+      const participant = (message as any).participant || (message as any).from;
+      return participant?.metadata ? JSON.parse(participant.metadata) : null;
     } catch {
       return null;
     }
@@ -146,17 +165,49 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
     }
   };
 
-  // Handle ban user
-  const handleBanUser = async (userId: string, username: string) => {
+  // Open ban modal
+  const openBanModal = (userId: string, username: string) => {
+    setBanTargetUser({ userId, username });
+    setBanForm({
+      reason: "",
+      expiresAt: "",
+      isPermanent: false,
+    });
+    setBanModalOpen(true);
+  };
+
+  // Handle ban user with form data
+  const handleBanUser = async () => {
+    if (!banTargetUser) return;
+
     try {
-      await axios.post("/api/bans/ban", {
-        userId,
-        reason: "Banned from chat",
+      // Prepare ban data
+      const banData: any = {
+        userId: banTargetUser.userId,
+        reason: banForm.reason.trim() || undefined,
+        isPermanent: banForm.isPermanent,
+      };
+
+      // Add expiry date if not permanent and date is provided
+      if (!banForm.isPermanent && banForm.expiresAt) {
+        banData.expiresAt = new Date(banForm.expiresAt).toISOString();
+      }
+
+      await axios.post("/api/bans", banData);
+      
+      // Close modal and reset
+      setBanModalOpen(false);
+      setBanTargetUser(null);
+      setBanForm({
+        reason: "",
+        expiresAt: "",
+        isPermanent: false,
       });
-      toast.success(`${username} has been banned`);
+      
+      toast.success(`${banTargetUser.username} has been banned`);
     } catch (error: any) {
       console.error("Failed to ban user:", error);
-      toast.error(error.response?.data?.message || "Failed to ban user");
+      toast.error(error.response?.data?.error || "Failed to ban user");
     }
   };
 
@@ -164,15 +215,16 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
   const handleTimeoutUser = async (userId: string, username: string) => {
     try {
       const timeoutEnd = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-      await axios.post("/api/bans/ban", {
+      await axios.post("/api/bans", {
         userId,
         reason: "5 minute timeout",
         expiresAt: timeoutEnd.toISOString(),
+        isPermanent: false,
       });
       toast.success(`${username} has been timed out for 5 minutes`);
     } catch (error: any) {
       console.error("Failed to timeout user:", error);
-      toast.error(error.response?.data?.message || "Failed to timeout user");
+      toast.error(error.response?.data?.error || "Failed to timeout user");
     }
   };
 
@@ -239,7 +291,8 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
             ) : (
               chatMessages.map((msg) => {
                 const userMetadata = getUserMetadata(msg);
-                const username = userMetadata?.username || msg.from?.name || "Anonymous";
+                const participant = (msg as any).participant || (msg as any).from;
+                const username = userMetadata?.username || participant?.name || "Anonymous";
                 const userId = userMetadata?.userId;
                 const isOwner = userMetadata?.isChannelOwner || false;
                 const isFollowing = userMetadata?.isFollowing || false;
@@ -304,7 +357,7 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
-                                onClick={() => handleBanUser(userId!, username)}
+                                onClick={() => openBanModal(userId!, username)}
                                 className="text-red-600 focus:text-red-600"
                               >
                                 <Ban className="h-3 w-3 mr-2" />
@@ -359,6 +412,76 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
           )}
         </div>
       </CardContent>
+
+      {/* Ban Modal */}
+      <Dialog open={banModalOpen} onOpenChange={setBanModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Ban User</DialogTitle>
+            <DialogDescription>
+              Ban {banTargetUser?.username || "this user"} from the chat. This will prevent them from accessing the stream and chatting.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="chat-ban-reason">Reason (optional)</Label>
+              <Input
+                id="chat-ban-reason"
+                placeholder="Enter ban reason..."
+                value={banForm.reason}
+                onChange={(e) => setBanForm(prev => ({ ...prev, reason: e.target.value }))}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground">
+                {banForm.reason.length}/500 characters
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="chat-permanent-ban"
+                checked={banForm.isPermanent}
+                onCheckedChange={(checked) => setBanForm(prev => ({ 
+                  ...prev, 
+                  isPermanent: checked,
+                  expiresAt: checked ? "" : prev.expiresAt 
+                }))}
+              />
+              <Label htmlFor="chat-permanent-ban">Permanent ban</Label>
+            </div>
+
+            {!banForm.isPermanent && (
+              <div className="space-y-2">
+                <Label htmlFor="chat-ban-expiry">Expires at (optional)</Label>
+                <Input
+                  id="chat-ban-expiry"
+                  type="datetime-local"
+                  value={banForm.expiresAt}
+                  onChange={(e) => setBanForm(prev => ({ ...prev, expiresAt: e.target.value }))}
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave empty for indefinite ban until manually removed
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setBanModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleBanUser}
+            >
+              Ban User
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -33,6 +33,8 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       });
       if (!channel) throw new Error("Channel not found");
 
+      // Note: We allow unfollowing even if banned, as this helps clean up relationships
+
       const { count } = await tx.follow.deleteMany({
         where: { userId, channelId },
       });

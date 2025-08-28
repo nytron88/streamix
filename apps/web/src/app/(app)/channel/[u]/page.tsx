@@ -9,6 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger,
+    DropdownMenuSeparator 
+} from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
     Heart,
     Users,
@@ -25,12 +43,17 @@ import {
     UserPlus,
     UserMinus,
     AlertCircle,
-    ExternalLink
+    ExternalLink,
+    Ban,
+    UserX,
+    MoreVertical
 } from "lucide-react";
 import { toast } from "sonner";
 import { useChannelBySlug } from "@/hooks/useChannelBySlug";
 import { useFollowActions } from "@/hooks/useFollowActions";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import { useBanUser } from "@/hooks/useBanUser";
+import { useUser as useClerkUser } from "@clerk/nextjs";
 
 interface ChannelStats {
     followers: number;
@@ -43,10 +66,14 @@ export default function ChannelPage() {
     const params = useParams();
     const slug = params.u as string;
     const { user } = useUser();
+    const { user: clerkUser } = useClerkUser();
 
     // Channel data
     const { data: channelData, error, isLoading, refresh } = useChannelBySlug(slug);
     const { followChannel, unfollowChannel, isLoading: isFollowingAction } = useFollowActions();
+    
+    // Ban functionality
+    const { banUser, loading: banLoading } = useBanUser();
 
     // Subscription status
     const {
@@ -58,6 +85,12 @@ export default function ChannelPage() {
 
     // Local states
     const [isSubscribing, setIsSubscribing] = useState(false);
+    const [banModalOpen, setBanModalOpen] = useState(false);
+    const [banForm, setBanForm] = useState({
+        reason: "",
+        expiresAt: "",
+        isPermanent: false,
+    });
 
     // Derived states
     const channel = channelData?.channel;
@@ -67,6 +100,9 @@ export default function ChannelPage() {
     const isFollowing = viewer?.isFollowing || false;
     const isBanned = viewer?.isBanned || false;
     const isLive = channel?.stream?.isLive || false;
+    
+    // Check if current user can moderate (they must own a channel and not be viewing their own channel)
+    const canModerate = clerkUser && !isOwner && channel?.user?.id && !isBanned;
 
     // Real stats from API
     const channelStats: ChannelStats = {
@@ -172,6 +208,39 @@ export default function ChannelPage() {
             toast.error(error.message || "Failed to start subscription process");
         } finally {
             setIsSubscribing(false);
+        }
+    };
+
+    // Handle ban action
+    const handleBanUser = async () => {
+        if (!channel?.user?.id) return;
+
+        // Prepare ban data
+        const banData: any = {
+            userId: channel.user.id,
+            reason: banForm.reason.trim() || undefined,
+            isPermanent: banForm.isPermanent,
+        };
+
+        // Add expiry date if not permanent and date is provided
+        if (!banForm.isPermanent && banForm.expiresAt) {
+            banData.expiresAt = new Date(banForm.expiresAt).toISOString();
+        }
+
+        const success = await banUser(banData);
+
+        if (success) {
+            // Close modal and reset form
+            setBanModalOpen(false);
+            setBanForm({
+                reason: "",
+                expiresAt: "",
+                isPermanent: false,
+            });
+            
+            // Refresh channel data to update ban status
+            refresh();
+            toast.success(`${channel.displayName || channel.user.name || 'User'} has been banned from your channel`);
         }
     };
 
@@ -368,8 +437,8 @@ export default function ChannelPage() {
                                 variant={isSubscribed ? "outline" : "default"}
                                 disabled={isSubscribing || isSubscriptionLoading}
                                 className={`flex items-center gap-2 cursor-pointer ${isSubscribed
-                                        ? "border-purple-600 text-purple-600 hover:bg-purple-50"
-                                        : "bg-purple-600 hover:bg-purple-700"
+                                    ? "border-purple-600 text-purple-600 hover:bg-purple-50"
+                                    : "bg-purple-600 hover:bg-purple-700"
                                     }`}
                             >
                                 {isSubscribing ? (
@@ -421,6 +490,13 @@ export default function ChannelPage() {
                                     </Button>
                                 </Link>
                             )}
+
+                            <Link href="/dashboard/bans">
+                                <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
+                                    <Shield className="h-4 w-4" />
+                                    Manage Bans
+                                </Button>
+                            </Link>
                         </div>
                     )}
                 </div>
@@ -590,6 +666,95 @@ export default function ChannelPage() {
                                     <ExternalLink className="h-4 w-4 mr-2" />
                                     Share Channel
                                 </Button>
+
+                                {/* Moderation Options for Other Channel Owners */}
+                                {canModerate && (
+                                    <div className="pt-2">
+                                        <Separator className="mb-3" />
+                                        <p className="text-xs text-muted-foreground mb-2 font-medium">Moderation</p>
+                                        
+                                        <Dialog open={banModalOpen} onOpenChange={setBanModalOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-start cursor-pointer text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
+                                                    disabled={banLoading}
+                                                >
+                                                    <UserX className="h-4 w-4 mr-2" />
+                                                    Ban User
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[425px]">
+                                                <DialogHeader>
+                                                    <DialogTitle>Ban User</DialogTitle>
+                                                    <DialogDescription>
+                                                        Ban {channel?.displayName || channel?.user?.name || "this user"} from your channel. This will remove them from your channel and cancel any active subscriptions.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="space-y-4 py-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="ban-reason">Reason (optional)</Label>
+                                                        <Input
+                                                            id="ban-reason"
+                                                            placeholder="Enter ban reason..."
+                                                            value={banForm.reason}
+                                                            onChange={(e) => setBanForm(prev => ({ ...prev, reason: e.target.value }))}
+                                                            maxLength={500}
+                                                        />
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {banForm.reason.length}/500 characters
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex items-center space-x-2">
+                                                        <Switch
+                                                            id="permanent-ban"
+                                                            checked={banForm.isPermanent}
+                                                            onCheckedChange={(checked) => setBanForm(prev => ({ 
+                                                                ...prev, 
+                                                                isPermanent: checked,
+                                                                expiresAt: checked ? "" : prev.expiresAt 
+                                                            }))}
+                                                        />
+                                                        <Label htmlFor="permanent-ban">Permanent ban</Label>
+                                                    </div>
+
+                                                    {!banForm.isPermanent && (
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="ban-expiry">Expires at (optional)</Label>
+                                                            <Input
+                                                                id="ban-expiry"
+                                                                type="datetime-local"
+                                                                value={banForm.expiresAt}
+                                                                onChange={(e) => setBanForm(prev => ({ ...prev, expiresAt: e.target.value }))}
+                                                                min={new Date().toISOString().slice(0, 16)}
+                                                            />
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Leave empty for indefinite ban until manually removed
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex justify-end space-x-2">
+                                                    <Button 
+                                                        variant="outline" 
+                                                        onClick={() => setBanModalOpen(false)}
+                                                        disabled={banLoading}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                    <Button 
+                                                        variant="destructive"
+                                                        onClick={handleBanUser}
+                                                        disabled={banLoading}
+                                                    >
+                                                        {banLoading ? "Banning..." : "Ban User"}
+                                                    </Button>
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )}

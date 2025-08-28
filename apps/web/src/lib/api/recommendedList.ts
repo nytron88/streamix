@@ -33,6 +33,73 @@ export async function getRecommendedList(limit = 12) {
     });
     const followedIds = followed.map((f) => f.channelId);
 
+    // 3) Get comprehensive bidirectional blocking
+    // This user's channel for bidirectional checks
+    const userChannel = await prisma.channel.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    // Get all mutual ban situations in one efficient query
+    const allBans = await prisma.ban.findMany({
+      where: {
+        OR: [
+          // Bans where this user is banned from other channels
+          {
+            userId,
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          },
+          // Bans where this user has banned others from their channel
+          userChannel ? {
+            channelId: userChannel.id,
+            OR: [
+              { expiresAt: null }, // Permanent ban
+              { expiresAt: { gt: new Date() } }, // Non-expired ban
+            ],
+          } : {},
+        ].filter(Boolean),
+      },
+      select: {
+        userId: true,
+        channelId: true,
+        channel: {
+          select: {
+            userId: true, // Owner of the channel where ban exists
+          },
+        },
+      },
+    });
+
+    // Extract all blocked channel IDs and user IDs
+    const blockedChannelIds = new Set<string>();
+    const blockedUserIds = new Set<string>();
+
+    allBans.forEach((ban) => {
+      if (ban.userId === userId) {
+        // This user is banned from ban.channelId
+        blockedChannelIds.add(ban.channelId);
+      } else {
+        // This user banned ban.userId, so block all their channels
+        blockedUserIds.add(ban.userId);
+      }
+    });
+
+    // Get all channels owned by blocked users
+    if (blockedUserIds.size > 0) {
+      const blockedUserChannels = await prisma.channel.findMany({
+        where: { userId: { in: Array.from(blockedUserIds) } },
+        select: { id: true },
+      });
+      blockedUserChannels.forEach((channel) => {
+        blockedChannelIds.add(channel.id);
+      });
+    }
+
+    const allBlockedChannelIds = Array.from(blockedChannelIds);
+
     const baseSelect = {
       id: true,
       slug: true,
@@ -44,10 +111,13 @@ export async function getRecommendedList(limit = 12) {
       stream: { select: { isLive: true } },
     } as const;
 
-    // 3) Followed — live first
+    // 4) Followed — live first (exclude banned)
     const followedLive = await prisma.channel.findMany({
       where: {
-        id: { in: followedIds.length ? followedIds : ["_none_"] },
+        id: { 
+          in: followedIds.length ? followedIds : ["_none_"],
+          notIn: allBlockedChannelIds.length ? allBlockedChannelIds : [],
+        },
         stream: { is: { isLive: true } },
       },
       select: baseSelect,
@@ -61,7 +131,10 @@ export async function getRecommendedList(limit = 12) {
       needAfterFollowedLive > 0
         ? await prisma.channel.findMany({
             where: {
-              id: { in: followedIds.length ? followedIds : ["_none_"] },
+              id: { 
+                in: followedIds.length ? followedIds : ["_none_"],
+                notIn: allBlockedChannelIds.length ? allBlockedChannelIds : [],
+              },
               OR: [
                 { stream: { is: { isLive: false } } },
                 { stream: null }, // safety in case stream row is missing
@@ -78,7 +151,7 @@ export async function getRecommendedList(limit = 12) {
       ...followedOffline.map((c) => c.id),
     ]);
 
-    // 4) Non-followed — live first (exclude self & already picked)
+    // 5) Non-followed — live first (exclude self, already picked, and banned)
     const needAfterFollowed =
       limit - (followedLive.length + followedOffline.length);
 
@@ -86,7 +159,7 @@ export async function getRecommendedList(limit = 12) {
       needAfterFollowed > 0
         ? await prisma.channel.findMany({
             where: {
-              id: { notIn: [...collectedIds, ...followedIds] },
+              id: { notIn: [...collectedIds, ...followedIds, ...allBlockedChannelIds] },
               userId: { not: userId },
               stream: { is: { isLive: true } },
             },
@@ -108,6 +181,7 @@ export async function getRecommendedList(limit = 12) {
                 notIn: [
                   ...collectedIds,
                   ...followedIds,
+                  ...allBlockedChannelIds,
                   ...nonFollowedLive.map((c) => c.id),
                 ],
               },
