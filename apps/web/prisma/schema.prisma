@@ -80,7 +80,6 @@ model Channel {
   subs        Subscription[]
   tips        Tip[]
   bans        Ban[]
-  sessions    StreamSession[]
   stream      Stream?
   
   @@index([userId])
@@ -204,8 +203,6 @@ model Vod {
   publishedAt      DateTime?
   createdAt        DateTime      @default(now())
 
-  session          StreamSession? @relation("SessionRecording")
-
   @@index([channelId, createdAt])
   @@index([visibility, createdAt])
 }
@@ -231,10 +228,6 @@ model Stream {
   isChatFollowersOnly     Boolean @default(false)
   isChatSubscribersOnly   Boolean @default(false)
 
-  // Optional pointer to the current open session (helps joins)
-  currentSessionId String?   @unique
-  currentSession   StreamSession? @relation("CurrentSession", fields: [currentSessionId], references: [id])
-
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -253,24 +246,6 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, createdAt])
-}
-
-model StreamSession {
-  id             String    @id @default(cuid())
-  channelId      String
-  channel        Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
-
-  startedAt      DateTime  @default(now())
-  endedAt        DateTime?
-  peakViewers    Int       @default(0)
-  totalChatMsgs  Int       @default(0)
-
-  recordingVodId String?   @unique
-  recordingVod   Vod?      @relation("SessionRecording", fields: [recordingVodId], references: [id])
-  
-  currentStream  Stream?   @relation("CurrentSession")
-
-  @@index([channelId, startedAt])
 }
 
 /* ========= Webhook idempotency ========= */
