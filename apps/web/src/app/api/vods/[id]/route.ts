@@ -3,7 +3,7 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import prisma from "@/lib/prisma/prisma";
-import { getCloudFrontUrl } from "@/lib/services/s3Service";
+import { getCloudFrontUrl, deleteFolderIfExists } from "@/lib/services/s3Service";
 import { z } from "zod";
 
 const VodUpdateSchema = z.object({
@@ -117,7 +117,23 @@ export const DELETE = withLoggerAndErrorHandler(async (req: NextRequest, { param
     return errorResponse("Channel not found", 404);
   }
 
-  // Delete VOD
+  // First, get the VOD to retrieve S3 keys for cleanup
+  const vod = await prisma.vod.findFirst({
+    where: {
+      id: vodId,
+      channelId: channel.id,
+    },
+    select: {
+      s3Key: true,
+      thumbnailS3Key: true,
+    },
+  });
+
+  if (!vod) {
+    return errorResponse("VOD not found", 404);
+  }
+
+  // Delete VOD from database
   const deletedVod = await prisma.vod.deleteMany({
     where: {
       id: vodId,
@@ -128,6 +144,16 @@ export const DELETE = withLoggerAndErrorHandler(async (req: NextRequest, { param
   if (deletedVod.count === 0) {
     return errorResponse("VOD not found", 404);
   }
+
+  // Clean up S3 objects (run in background, don't wait for completion)
+  Promise.all([
+    // Delete the entire VOD folder (contains video file and any other assets)
+    vod.s3Key ? deleteFolderIfExists(vod.s3Key.substring(0, vod.s3Key.lastIndexOf('/'))) : Promise.resolve(),
+    // Delete thumbnail if it exists (thumbnails are stored separately)
+    vod.thumbnailS3Key ? deleteFolderIfExists(vod.thumbnailS3Key.substring(0, vod.thumbnailS3Key.lastIndexOf('/'))) : Promise.resolve(),
+  ]).catch((error) => {
+    console.error("Error cleaning up S3 objects for VOD:", vodId, error);
+  });
 
   return successResponse("VOD deleted successfully", 200, {
     deleted: true,

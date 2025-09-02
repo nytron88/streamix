@@ -5,7 +5,10 @@ import { useVods } from "@/hooks/useVods";
 import { VodList } from "@/components/dashboard/vods/VodList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Video, Eye, Clock, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Video, Eye, Clock, TrendingUp, Plus, Filter, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function VodsPage() {
   const [page, setPage] = useState(1);
@@ -42,7 +45,7 @@ export default function VodsPage() {
           </p>
           <button 
             onClick={handleRefresh}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 cursor-pointer"
           >
             Try Again
           </button>
@@ -55,12 +58,45 @@ export default function VodsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">VOD Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your recorded livestreams and video content
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">VOD Management</h1>
+            <p className="text-muted-foreground mt-2">
+              Manage your recorded livestreams and video content
+            </p>
+          </div>
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Upload VOD
+          </Button>
         </div>
+
+        {/* Search and Filter Bar */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search VODs by title..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All VODs</SelectItem>
+                  <SelectItem value="PUBLIC">Public</SelectItem>
+                  <SelectItem value="SUB_ONLY">Subscribers Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

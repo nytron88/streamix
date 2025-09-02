@@ -11,6 +11,7 @@ import { Vod } from "@/types/vod";
 import { VodEditModal } from "./VodEditModal";
 import { ThumbnailUploadModal } from "./ThumbnailUploadModal";
 import { DeleteVodDialog } from "./DeleteVodDialog";
+import { VideoPlayer } from "./VideoPlayer";
 import { formatDate } from "@/lib/utils";
 
 interface VodCardProps {
@@ -22,6 +23,7 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showThumbnailModal, setShowThumbnailModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
 
   const getVisibilityBadge = (visibility: string) => {
     switch (visibility) {
@@ -38,12 +40,12 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
     <>
       <Card className="overflow-hidden">
         {/* Thumbnail */}
-        <div className="relative aspect-video bg-muted">
+        <div className="relative aspect-video bg-muted group cursor-pointer" onClick={() => setShowVideoPlayer(true)}>
           {vod.thumbnailUrl ? (
             <img
               src={vod.thumbnailUrl}
               alt={vod.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform group-hover:scale-105"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -53,7 +55,13 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
               </div>
             </div>
           )}
-
+          
+          {/* Play Button Overlay */}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="bg-white/90 rounded-full p-3">
+              <Play className="h-6 w-6 text-black ml-1" />
+            </div>
+          </div>
         </div>
 
         <CardHeader className="pb-3">
@@ -84,14 +92,10 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Thumbnail
                 </DropdownMenuItem>
-                {vod.s3Url && (
-                  <DropdownMenuItem asChild>
-                    <a href={vod.s3Url} target="_blank" rel="noopener noreferrer">
-                      <Play className="h-4 w-4 mr-2" />
-                      Watch
-                    </a>
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem onClick={() => setShowVideoPlayer(true)}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Watch
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setShowDeleteDialog(true)}
                   className="text-red-600"
@@ -138,6 +142,13 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onDeleteSuccess={onUpdate}
+      />
+
+      <VideoPlayer
+        vodId={vod.id}
+        title={vod.title}
+        open={showVideoPlayer}
+        onOpenChange={setShowVideoPlayer}
       />
     </>
   );
