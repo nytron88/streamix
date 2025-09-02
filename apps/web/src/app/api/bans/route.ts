@@ -4,9 +4,11 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
 import redis from "@/lib/redis/redis";
+import { clearBanRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import stripe from "@/lib/stripe/stripe";
 import { BanBodySchema } from "@/schemas/banBodySchema";
 import { BanBody } from "@/types/ban";
+import { Prisma } from "@prisma/client";
 
 /**
  * POST /api/bans - Ban a user from the authenticated user's channel
@@ -48,7 +50,8 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       return errorResponse("You cannot ban yourself", 400);
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Check if user exists
       const userToBan = await tx.user.findUnique({
         where: { id: userId },
@@ -187,45 +190,13 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       };
     });
 
-    // Clear relevant cache entries (comprehensive bidirectional cache invalidation)
-    const cacheKeysToDelete = [
-      // Ban-specific caches
-      `bans:channel:${channel.id}`,
-      `bans:user:${userId}`,
-      `ban:check:${channel.id}:${userId}`,
-      
-      // Banned user's caches
-      `follows:following:${userId}`,
-      `subscriptions:${userId}`,
-      
-      // Channel owner's caches  
-      `follows:following:${channelOwnerId}`,
-      `subscriptions:${channelOwnerId}`,
-      
-      // Bidirectional follower caches
-      `followers:${channel.id}`,
-    ];
-
-    // Add banned user's channel follower cache if they have a channel
-    if (result.bannedUserChannel) {
-      cacheKeysToDelete.push(`followers:${result.bannedUserChannel.id}`);
-      cacheKeysToDelete.push(`ban:check:${result.bannedUserChannel.id}:${channelOwnerId}`);
-    }
-
-    // Delete exact cache keys
-    await Promise.allSettled(cacheKeysToDelete.map(key => redis.del(key)));
-
-    // Delete recommendation caches for both users (all limit variations)
-    // Note: Redis doesn't have a simple pattern delete, so we'll clear common limits
-    const commonLimits = [10, 12, 15, 20, 24, 25];
-    const recCacheKeysToDelete = [];
-    
-    for (const limit of commonLimits) {
-      recCacheKeysToDelete.push(`recs:channels:${userId}:${limit}`);
-      recCacheKeysToDelete.push(`recs:channels:${channelOwnerId}:${limit}`);
-    }
-    
-    await Promise.allSettled(recCacheKeysToDelete.map(key => redis.del(key)));
+    // Clear all related caches using the comprehensive cache invalidation utility
+    await clearBanRelatedCaches({
+      userId: channelOwnerId,
+      channelId: channel.id,
+      targetUserId: userId,
+      targetChannelId: result.bannedUserChannel?.id
+    });
 
     return successResponse("User banned successfully", 200, {
       ban: result,

@@ -65,9 +65,19 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
         </div>
 
         <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg font-semibold truncate">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0 pr-2">
+              <CardTitle 
+                className="text-lg font-semibold leading-tight overflow-hidden" 
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  lineHeight: '1.4',
+                  maxHeight: '2.8em'
+                }}
+                title={vod.title}
+              >
                 {vod.title}
               </CardTitle>
               <div className="flex items-center gap-2 mt-1">
@@ -77,34 +87,36 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
                 </span>
               </div>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowEditModal(true)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowThumbnailModal(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Thumbnail
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowVideoPlayer(true)}>
-                  <Play className="h-4 w-4 mr-2" />
-                  Watch
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-red-600"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex-shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowThumbnailModal(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Thumbnail
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowVideoPlayer(true)}>
+                    <Play className="h-4 w-4 mr-2" />
+                    Watch
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">

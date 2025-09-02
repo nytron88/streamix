@@ -3,7 +3,7 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
-import redis from "@/lib/redis/redis";
+import { clearFollowRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import { ChannelIdSchema } from "@/schemas/channelIdSchema";
 import { ChannelId } from "@/types/channel";
 
@@ -45,17 +45,17 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
           id: channel.id,
           slug: channel.slug,
           displayName: channel.displayName,
+          userId: channel.userId, // Include channel owner's user ID for cache invalidation
         },
       };
     });
 
-    // Clear relevant caches after unfollowing a channel
-    // Note: We don't clear channel cache since counts are fetched fresh each time
-    await Promise.allSettled([
-      redis.del(`follows:following:${userId}`),
-      redis.del(`recs:channels:${userId}`),
-      redis.del(`followers:${channelId}`),
-    ]);
+    // Clear all related caches using the comprehensive cache invalidation utility
+    await clearFollowRelatedCaches({
+      userId,
+      targetChannelId: channelId,
+      targetUserId: result.channel.userId // Channel owner's user ID
+    });
 
     return successResponse("Unfollow processed", 200, {
       followed: false,

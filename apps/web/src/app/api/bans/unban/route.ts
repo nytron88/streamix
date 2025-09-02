@@ -3,7 +3,7 @@ import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
-import redis from "@/lib/redis/redis";
+import { clearBanRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import { BanIdSchema } from "@/schemas/banIdSchema";
 import { BanId } from "@/types/ban";
 
@@ -72,28 +72,12 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       };
     });
 
-    // Clear relevant cache entries (comprehensive cache invalidation)
-    // Clear exact cache keys
-    await Promise.allSettled([
-      redis.del(`bans:channel:${result.channelId}`),
-      redis.del(`bans:user:${result.userId}`),
-      redis.del(`ban:check:${result.channelId}:${result.userId}`),
-      redis.del(`follows:following:${result.userId}`), // Unbanned user's following cache
-      redis.del(`followers:${result.channelId}`), // Channel's followers cache
-      redis.del(`subscriptions:${result.userId}`), // Unbanned user's subscriptions
-    ]);
-
-    // Clear recommendation caches for both users (all limit variations)
-    const commonLimits = [10, 12, 15, 20, 24, 25];
-    const recCacheKeysToDelete = [];
-    
-    for (const limit of commonLimits) {
-      recCacheKeysToDelete.push(`recs:channels:${result.userId}:${limit}`);
-      // We need to get the channel owner ID for bilateral cache clearing
-      // For now, we'll just clear the unbanned user's cache
-    }
-    
-    await Promise.allSettled(recCacheKeysToDelete.map(key => redis.del(key)));
+    // Clear all related caches using the comprehensive cache invalidation utility
+    await clearBanRelatedCaches({
+      userId: channelOwnerId,
+      channelId: result.channelId,
+      targetUserId: result.userId
+    });
 
     return successResponse("Ban removed successfully", 200, {
       removedBan: {
