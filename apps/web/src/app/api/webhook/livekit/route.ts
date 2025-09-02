@@ -17,10 +17,11 @@ const AWS_REGION = process.env.AWS_REGION!;
 
 const receiver = new WebhookReceiver(LK_KEY, LK_SECRET);
 
+/* ---------------- helpers ---------------- */
+
 // Extract the S3 object key from fileResults or legacy fields
 function extractS3KeyAndMeta(e: WebhookEvent): {
   key: string | null;
-  durationS?: number;
   etag?: string;
 } {
   const info: any = e.egressInfo ?? {};
@@ -29,7 +30,6 @@ function extractS3KeyAndMeta(e: WebhookEvent): {
     if (typeof fr.filename === "string" && fr.filename.length > 0) {
       return {
         key: fr.filename,
-        durationS: typeof fr.duration === "number" ? fr.duration : undefined,
         etag: typeof fr.etag === "string" ? fr.etag : undefined,
       };
     }
@@ -45,20 +45,32 @@ function extractS3KeyAndMeta(e: WebhookEvent): {
   if (legacy?.filepath) {
     return {
       key: legacy.filepath,
-      durationS:
-        typeof legacy.duration === "number" ? legacy.duration : undefined,
       etag: typeof legacy.etag === "string" ? legacy.etag : undefined,
     };
   }
   return { key: null };
 }
 
+function makeVodTitle(displayName: string | null | undefined, userId: string) {
+  // "Alice — 2025-09-01 14:07 UTC" or "user123 — 2025-09-01 14:07 UTC"
+  const who = (displayName && displayName.trim()) || userId;
+  const now = new Date();
+  const yyyy = now.getUTCFullYear();
+  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(now.getUTCDate()).padStart(2, "0");
+  const hh = String(now.getUTCHours()).padStart(2, "0");
+  const mi = String(now.getUTCMinutes()).padStart(2, "0");
+  return `${who} — ${yyyy}-${mm}-${dd} ${hh}:${mi} UTC`;
+}
+
+/* ---------------- handler ---------------- */
+
 async function handleEvent(e: WebhookEvent) {
   const roomUserId =
     e.room?.name || e.ingressInfo?.roomName || e.egressInfo?.roomName;
   if (!roomUserId) return;
 
-  // Idempotency: skip if already processed
+  // Idempotency (skip already-seen events)
   if (e.id) {
     try {
       await prisma.processedWebhookEvent.create({
@@ -71,7 +83,7 @@ async function handleEvent(e: WebhookEvent) {
 
   const channel = await prisma.channel.findUnique({
     where: { userId: roomUserId },
-    select: { id: true },
+    select: { id: true, userId: true, displayName: true },
   });
   if (!channel) return;
 
@@ -86,7 +98,7 @@ async function handleEvent(e: WebhookEvent) {
       await prisma.$transaction(async (tx) => {
         await ensureStream(tx);
 
-        // Atomic flip to live
+        // flip to live atomically (avoid double egress start)
         const { count } = await tx.stream.updateMany({
           where: { channelId: channel.id, isLive: false },
           data: { isLive: true },
@@ -141,10 +153,11 @@ async function handleEvent(e: WebhookEvent) {
 
       if (!isFinal) break;
 
-      const { key: s3Key, durationS, etag } = extractS3KeyAndMeta(e);
+      const { key: s3Key, etag } = extractS3KeyAndMeta(e);
       if (!s3Key) break;
 
       const providerAssetId = e.egressInfo?.egressId ?? null;
+      const title = makeVodTitle(channel.displayName, roomUserId);
 
       if (providerAssetId) {
         const existing = await prisma.vod.findFirst({
@@ -160,7 +173,7 @@ async function handleEvent(e: WebhookEvent) {
               s3Region: AWS_REGION,
               s3Key,
               s3ETag: etag ?? undefined,
-              durationS: durationS ?? undefined,
+              title,
               publishedAt: new Date(),
             },
           });
@@ -173,8 +186,7 @@ async function handleEvent(e: WebhookEvent) {
               s3Region: AWS_REGION,
               s3Key,
               s3ETag: etag ?? undefined,
-              title: "Stream Recording",
-              durationS: durationS ?? undefined,
+              title,
               visibility: "PUBLIC",
               publishedAt: new Date(),
             },
@@ -193,7 +205,7 @@ async function handleEvent(e: WebhookEvent) {
               s3Region: AWS_REGION,
               s3Key,
               s3ETag: etag ?? undefined,
-              durationS: durationS ?? undefined,
+              title,
               publishedAt: new Date(),
             },
           });
@@ -206,8 +218,7 @@ async function handleEvent(e: WebhookEvent) {
               s3Region: AWS_REGION,
               s3Key,
               s3ETag: etag ?? undefined,
-              title: "Stream Recording",
-              durationS: durationS ?? undefined,
+              title,
               visibility: "PUBLIC",
               publishedAt: new Date(),
             },
@@ -221,6 +232,8 @@ async function handleEvent(e: WebhookEvent) {
       break;
   }
 }
+
+/* ---------------- route ---------------- */
 
 export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const authz = req.headers.get("authorization") || "";

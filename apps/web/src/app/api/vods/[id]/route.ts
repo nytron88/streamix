@@ -3,11 +3,13 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import prisma from "@/lib/prisma/prisma";
+import { getCloudFrontUrl } from "@/lib/services/s3Service";
 import { z } from "zod";
 
 const VodUpdateSchema = z.object({
   title: z.string().min(1).max(100).optional(),
   visibility: z.enum(["PUBLIC", "SUB_ONLY"]).optional(),
+  thumbnailS3Key: z.string().optional(),
 });
 
 export const GET = withLoggerAndErrorHandler(async (req: NextRequest, { params }: { params: { id: string } }) => {
@@ -36,7 +38,7 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest, { params }
       id: true,
       title: true,
       visibility: true,
-      durationS: true,
+
       s3Key: true,
       s3Bucket: true,
       s3Region: true,
@@ -56,7 +58,8 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest, { params }
     vod: {
       ...vod,
       viewCount: 0, // TODO: Implement view tracking
-      s3Url: vod.s3Key ? `https://${vod.s3Bucket}.s3.${vod.s3Region}.amazonaws.com/${vod.s3Key}` : null,
+      s3Url: vod.s3Key ? getCloudFrontUrl(vod.s3Key) : null,
+      thumbnailUrl: vod.thumbnailS3Key ? getCloudFrontUrl(vod.thumbnailS3Key) : null,
     },
   });
 });

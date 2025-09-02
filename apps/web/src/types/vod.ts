@@ -2,7 +2,6 @@ export interface Vod {
   id: string;
   title: string;
   visibility: "PUBLIC" | "SUB_ONLY";
-  durationS: number | null;
   s3Key: string | null;
   s3Bucket: string | null;
   s3Region: string | null;
@@ -13,11 +12,13 @@ export interface Vod {
   thumbnailS3Key: string | null;
   viewCount: number;
   s3Url: string | null;
+  thumbnailUrl: string | null;
 }
 
 export interface VodUpdateData {
   title?: string;
   visibility?: "PUBLIC" | "SUB_ONLY";
+  thumbnailS3Key?: string;
 }
 
 export interface VodsResponse {

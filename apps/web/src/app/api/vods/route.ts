@@ -3,6 +3,7 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import prisma from "@/lib/prisma/prisma";
+import { getCloudFrontUrl } from "@/lib/services/s3Service";
 import { z } from "zod";
 
 const QuerySchema = z.object({
@@ -17,7 +18,7 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
   if (isNextResponse(authResult)) return authResult;
   const { userId } = authResult;
   const { searchParams } = new URL(req.url);
-  
+
   const query = QuerySchema.parse({
     page: searchParams.get("page"),
     limit: searchParams.get("limit"),
@@ -66,7 +67,7 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
         id: true,
         title: true,
         visibility: true,
-        durationS: true,
+
         s3Key: true,
         s3Bucket: true,
         s3Region: true,
@@ -80,11 +81,14 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
     prisma.vod.count({ where }),
   ]);
 
-  // Add S3 URLs (view counts would need to be implemented separately)
+  // Add CloudFront URLs (view counts would need to be implemented separately)
   const vodsWithStats = vods.map((vod) => ({
     ...vod,
     viewCount: 0, // TODO: Implement view tracking
-    s3Url: vod.s3Key ? `https://${vod.s3Bucket}.s3.${vod.s3Region}.amazonaws.com/${vod.s3Key}` : null,
+    s3Url: vod.s3Key ? getCloudFrontUrl(vod.s3Key) : null,
+    thumbnailUrl: vod.thumbnailS3Key
+      ? getCloudFrontUrl(vod.thumbnailS3Key)
+      : null,
   }));
 
   return successResponse("VODs retrieved successfully", 200, {

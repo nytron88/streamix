@@ -8,6 +8,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const REGION = process.env.AWS_REGION!;
 const BUCKET = process.env.S3_BUCKET!;
+const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN!;
 
 const s3 = new S3Client({ region: REGION });
 
@@ -26,10 +27,23 @@ function extFromMime(mime: string): string {
 
 export function generateImageKey(
   userId: string,
-  type: "avatar" | "banner",
+  type: "avatar" | "banner" | "thumbnail",
   contentType?: string
 ): string {
-  const folder = type === "avatar" ? "images/profile" : "images/banner";
+  let folder: string;
+  switch (type) {
+    case "avatar":
+      folder = "images/profile";
+      break;
+    case "banner":
+      folder = "images/banner";
+      break;
+    case "thumbnail":
+      folder = "thumbnails";
+      break;
+    default:
+      folder = "images";
+  }
   const ext = contentType ? extFromMime(contentType) : "jpg";
   const ts = Date.now();
   return `${folder}/${userId}-${ts}.${ext}`;
@@ -61,6 +75,14 @@ export async function getUploadSignedUrl(args: {
     },
     expiresIn,
   };
+}
+
+export function getCloudFrontUrl(key: string): string {
+  if (!CLOUDFRONT_DOMAIN) {
+    // Fallback to S3 URL if CloudFront domain not configured
+    return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+  }
+  return `https://${CLOUDFRONT_DOMAIN}/${key}`;
 }
 
 export async function deleteObjectIfExists(key?: string | null): Promise<void> {

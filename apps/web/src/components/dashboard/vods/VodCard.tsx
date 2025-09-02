@@ -5,11 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Play, Edit, Trash2, Eye, EyeOff, Clock } from "lucide-react";
+import { MoreVertical, Play, Edit, Trash2, Image, Upload } from "lucide-react";
 import { Vod } from "@/types/vod";
-import { useVodActions } from "@/hooks/useVodActions";
+
 import { VodEditModal } from "./VodEditModal";
-import { formatDuration, formatDate } from "@/lib/utils";
+import { ThumbnailUploadModal } from "./ThumbnailUploadModal";
+import { DeleteVodDialog } from "./DeleteVodDialog";
+import { formatDate } from "@/lib/utils";
 
 interface VodCardProps {
   vod: Vod;
@@ -18,16 +20,8 @@ interface VodCardProps {
 
 export function VodCard({ vod, onUpdate }: VodCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
-  const { deleteVod, isLoading } = useVodActions();
-
-  const handleDelete = async () => {
-    if (window.confirm("Are you sure you want to delete this VOD? This action cannot be undone.")) {
-      const success = await deleteVod(vod.id);
-      if (success) {
-        onUpdate();
-      }
-    }
-  };
+  const [showThumbnailModal, setShowThumbnailModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const getVisibilityBadge = (visibility: string) => {
     switch (visibility) {
@@ -43,6 +37,25 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
   return (
     <>
       <Card className="overflow-hidden">
+        {/* Thumbnail */}
+        <div className="relative aspect-video bg-muted">
+          {vod.thumbnailUrl ? (
+            <img
+              src={vod.thumbnailUrl}
+              alt={vod.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center">
+                <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-xs text-muted-foreground">No thumbnail</p>
+              </div>
+            </div>
+          )}
+
+        </div>
+
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -67,6 +80,10 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowThumbnailModal(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Thumbnail
+                </DropdownMenuItem>
                 {vod.s3Url && (
                   <DropdownMenuItem asChild>
                     <a href={vod.s3Url} target="_blank" rel="noopener noreferrer">
@@ -75,10 +92,9 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
                     </a>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem 
-                  onClick={handleDelete}
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteDialog(true)}
                   className="text-red-600"
-                  disabled={isLoading}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
@@ -90,12 +106,6 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
         <CardContent className="pt-0">
           <div className="space-y-2">
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              {vod.durationS && (
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDuration(vod.durationS)}
-                </div>
-              )}
               <div>
                 Created {formatDate(vod.createdAt)}
               </div>
@@ -114,6 +124,20 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
         open={showEditModal}
         onOpenChange={setShowEditModal}
         onUpdate={onUpdate}
+      />
+
+      <ThumbnailUploadModal
+        vodId={vod.id}
+        open={showThumbnailModal}
+        onOpenChange={setShowThumbnailModal}
+        onUploadSuccess={onUpdate}
+      />
+
+      <DeleteVodDialog
+        vod={vod}
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onDeleteSuccess={onUpdate}
       />
     </>
   );
