@@ -30,7 +30,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const { banId } = body;
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Get the ban and verify ownership
       const ban = await tx.ban.findUnique({
         where: { id: banId },
