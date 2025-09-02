@@ -32,7 +32,11 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
 
   const { userId, reason, expiresAt, isPermanent } = body;
   // Handle permanent vs temporary bans
-  const expirationDate = isPermanent ? null : (expiresAt ? new Date(expiresAt) : undefined);
+  const expirationDate = isPermanent
+    ? null
+    : expiresAt
+    ? new Date(expiresAt)
+    : undefined;
 
   try {
     // Get channel for the authenticated user
@@ -51,151 +55,168 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Check if user exists
-      const userToBan = await tx.user.findUnique({
-        where: { id: userId },
-        select: { id: true, name: true },
-      });
-
-      if (!userToBan) {
-        throw new Error("User not found");
-      }
-
-      // Check if user is already banned
-      const existingBan = await tx.ban.findUnique({
-        where: {
-          channelId_userId: {
-            channelId: channel.id,
-            userId: userId,
-          },
-        },
-      });
-
-      if (existingBan) {
-        throw new Error("User is already banned");
-      }
-
-      // Get the banned user's channel for bidirectional cleanup
-      const bannedUserChannel = await tx.channel.findUnique({
-        where: { userId: userId },
-        select: { id: true },
-      });
-
-      // Remove follow relationships BOTH ways for complete isolation
-      await Promise.all([
-        // Remove banned user following this channel
-        tx.follow.deleteMany({
-          where: { userId: userId, channelId: channel.id },
-        }),
-        // Remove channel owner following banned user's channel (if exists)
-        bannedUserChannel ? tx.follow.deleteMany({
-          where: { userId: channelOwnerId, channelId: bannedUserChannel.id },
-        }) : Promise.resolve(),
-      ]);
-
-      // Check if user has existing paid subscription and cancel it
-      const existingSubscription = await tx.subscription.findUnique({
-        where: {
-          userId_channelId: {
-            userId: userId,
-            channelId: channel.id,
-          },
-        },
-        select: { id: true, status: true, stripeSubId: true },
-      });
-
-      // Auto-cancel active subscriptions bidirectionally
-      const subscriptionsToCancel: Array<{id: string, stripeSubId: string}> = [];
-      
-      // 1. Cancel banned user's subscription to this channel
-      if (existingSubscription && 
-          existingSubscription.stripeSubId && 
-          ["ACTIVE", "CANCEL_SCHEDULED"].includes(existingSubscription.status)) {
-        subscriptionsToCancel.push({
-          id: existingSubscription.id,
-          stripeSubId: existingSubscription.stripeSubId
+    const result = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // Check if user exists
+        const userToBan = await tx.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true },
         });
-      }
 
-      // 2. Cancel channel owner's subscription to banned user's channel (if exists)
-      if (bannedUserChannel) {
-        const reverseSubscription = await tx.subscription.findUnique({
+        if (!userToBan) {
+          throw new Error("User not found");
+        }
+
+        // Check if user is already banned
+        const existingBan = await tx.ban.findUnique({
+          where: {
+            channelId_userId: {
+              channelId: channel.id,
+              userId: userId,
+            },
+          },
+        });
+
+        if (existingBan) {
+          throw new Error("User is already banned");
+        }
+
+        // Get the banned user's channel for bidirectional cleanup
+        const bannedUserChannel = await tx.channel.findUnique({
+          where: { userId: userId },
+          select: { id: true },
+        });
+
+        // Remove follow relationships BOTH ways for complete isolation
+        await Promise.all([
+          // Remove banned user following this channel
+          tx.follow.deleteMany({
+            where: { userId: userId, channelId: channel.id },
+          }),
+          // Remove channel owner following banned user's channel (if exists)
+          bannedUserChannel
+            ? tx.follow.deleteMany({
+                where: {
+                  userId: channelOwnerId,
+                  channelId: bannedUserChannel.id,
+                },
+              })
+            : Promise.resolve(),
+        ]);
+
+        // Check if user has existing paid subscription and cancel it
+        const existingSubscription = await tx.subscription.findUnique({
           where: {
             userId_channelId: {
-              userId: channelOwnerId,
-              channelId: bannedUserChannel.id,
+              userId: userId,
+              channelId: channel.id,
             },
           },
           select: { id: true, status: true, stripeSubId: true },
         });
 
-        if (reverseSubscription && 
-            reverseSubscription.stripeSubId && 
-            ["ACTIVE", "CANCEL_SCHEDULED"].includes(reverseSubscription.status)) {
+        // Auto-cancel active subscriptions bidirectionally
+        const subscriptionsToCancel: Array<{
+          id: string;
+          stripeSubId: string;
+        }> = [];
+
+        // 1. Cancel banned user's subscription to this channel
+        if (
+          existingSubscription &&
+          existingSubscription.stripeSubId &&
+          ["ACTIVE", "CANCEL_SCHEDULED"].includes(existingSubscription.status)
+        ) {
           subscriptionsToCancel.push({
-            id: reverseSubscription.id,
-            stripeSubId: reverseSubscription.stripeSubId
+            id: existingSubscription.id,
+            stripeSubId: existingSubscription.stripeSubId,
           });
         }
-      }
 
-      // Cancel all subscriptions
-      for (const sub of subscriptionsToCancel) {
-        try {
-          // Cancel subscription in Stripe immediately
-          await stripe.subscriptions.cancel(sub.stripeSubId);
-          
-          // Update subscription status in our database
-          await tx.subscription.update({
-            where: { id: sub.id },
-            data: { 
-              status: "CANCELED",
-              // Stripe will set the actual cancellation date
+        // 2. Cancel channel owner's subscription to banned user's channel (if exists)
+        if (bannedUserChannel) {
+          const reverseSubscription = await tx.subscription.findUnique({
+            where: {
+              userId_channelId: {
+                userId: channelOwnerId,
+                channelId: bannedUserChannel.id,
+              },
             },
+            select: { id: true, status: true, stripeSubId: true },
           });
-        } catch (stripeError) {
-          // Log the error but don't fail the ban operation
-          console.error("Failed to cancel Stripe subscription during ban:", stripeError);
-          // Continue with ban creation even if Stripe cancellation fails
-        }
-      }
 
-      // Create the ban
-      const ban = await tx.ban.create({
-        data: {
-          channelId: channel.id,
-          userId: userId,
-          reason: reason,
-          expiresAt: expirationDate,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
+          if (
+            reverseSubscription &&
+            reverseSubscription.stripeSubId &&
+            ["ACTIVE", "CANCEL_SCHEDULED"].includes(reverseSubscription.status)
+          ) {
+            subscriptionsToCancel.push({
+              id: reverseSubscription.id,
+              stripeSubId: reverseSubscription.stripeSubId,
+            });
+          }
+        }
+
+        // Cancel all subscriptions
+        for (const sub of subscriptionsToCancel) {
+          try {
+            // Cancel subscription in Stripe immediately
+            await stripe.subscriptions.cancel(sub.stripeSubId);
+
+            // Update subscription status in our database
+            await tx.subscription.update({
+              where: { id: sub.id },
+              data: {
+                status: "CANCELED",
+                // Stripe will set the actual cancellation date
+              },
+            });
+          } catch (stripeError) {
+            // Log the error but don't fail the ban operation
+            console.error(
+              "Failed to cancel Stripe subscription during ban:",
+              stripeError
+            );
+            // Continue with ban creation even if Stripe cancellation fails
+          }
+        }
+
+        // Create the ban
+        const ban = await tx.ban.create({
+          data: {
+            channelId: channel.id,
+            userId: userId,
+            reason: reason,
+            expiresAt: expirationDate,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      return {
-        id: ban.id,
-        userId: ban.userId,
-        userName: ban.user.name,
-        reason: ban.reason,
-        expiresAt: ban.expiresAt?.toISOString() || null,
-        createdAt: ban.createdAt.toISOString(),
-        bannedUserChannel, // Include for cache invalidation
-      };
-    });
+        return {
+          id: ban.id,
+          userId: ban.userId,
+          userName: ban.user.name,
+          reason: ban.reason,
+          expiresAt: ban.expiresAt?.toISOString() || null,
+          createdAt: ban.createdAt.toISOString(),
+          bannedUserChannel, // Include for cache invalidation
+        };
+      }
+    );
 
     // Clear all related caches using the comprehensive cache invalidation utility
     await clearBanRelatedCaches({
       userId: channelOwnerId,
       channelId: channel.id,
       targetUserId: userId,
-      targetChannelId: result.bannedUserChannel?.id
+      targetChannelId: result.bannedUserChannel?.id,
     });
 
     return successResponse("User banned successfully", 200, {
@@ -261,7 +282,8 @@ export const GET = withLoggerAndErrorHandler(async () => {
       },
     });
 
-    const formattedBans = bans.map((ban) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedBans = bans.map((ban: any) => ({
       id: ban.id,
       userId: ban.userId,
       userName: ban.user.name,
@@ -283,4 +305,3 @@ export const GET = withLoggerAndErrorHandler(async () => {
     });
   }
 });
-
