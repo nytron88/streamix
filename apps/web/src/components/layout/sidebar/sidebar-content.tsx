@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Home, TrendingUp, Users, LayoutDashboard, Bell, CreditCard } from "lucide-react";
+import { Home, TrendingUp, Users, LayoutDashboard, Bell, CreditCard, Video } from "lucide-react";
 import { RecommendedChannel } from "@/types/recommendations";
 
 
@@ -18,6 +18,7 @@ interface SidebarContentProps {
 const sidebarItems = [
     { icon: Home, label: "Home", href: "/home" },
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+    { icon: Video, label: "VODs", href: "/dashboard/vods" },
     { icon: Users, label: "Following", href: "/following" },
     { icon: CreditCard, label: "Subscriptions", href: "/subscriptions" },
     { icon: Bell, label: "Notifications", href: "/notifications" },
