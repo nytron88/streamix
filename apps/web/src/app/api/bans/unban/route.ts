@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma/prisma";
 import { clearBanRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import { BanIdSchema } from "@/schemas/banIdSchema";
 import { BanId } from "@/types/ban";
+import { Prisma } from "@prisma/client";
 
 /**
  * POST /api/bans/unban - Remove a ban
@@ -30,7 +31,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const { banId } = body;
 
   try {
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Get the ban and verify ownership
       const ban = await tx.ban.findUnique({
         where: { id: banId },

@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma/prisma";
 import redis from "@/lib/redis/redis";
 import { ChatSettingsUpdateSchema } from "@/schemas/chatSettingSchema";
 import { ChatSettingsInput } from "@/types/chat";
+import { Prisma } from "@prisma/client";
 
 const TTL_SECONDS = 60;
 
@@ -125,7 +126,7 @@ export const PATCH = withLoggerAndErrorHandler(async (request: NextRequest) => {
     }
 
     const { updatedStream, hasChanges } = await prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         // Find or create stream record for the user
         let stream = await tx.stream.findFirst({
           where: {

@@ -8,6 +8,7 @@ import { Webhook } from "svix";
 import logger from "@/lib/utils/logger";
 import { deleteObjectIfExists } from "@/lib/services/s3Service";
 import { ingress } from "@/lib/services/ingressService";
+import { Prisma } from "@prisma/client";
 
 const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -47,7 +48,7 @@ async function handleUserCreated(
 
   const slug = base.length >= 3 ? base : `${base}-${data.id.slice(0, 4)}`;
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const user = await tx.user.upsert({
       where: { id: data.id },
       update: {
@@ -143,7 +144,7 @@ async function handleUserDeleted(
     channelId?: string | null;
   } = {};
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // channel (by user)
     const channel = await tx.channel.findUnique({
       where: { userId: data.id },

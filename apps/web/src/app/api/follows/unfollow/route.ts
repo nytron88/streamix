@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma/prisma";
 import { clearFollowRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import { ChannelIdSchema } from "@/schemas/channelIdSchema";
 import { ChannelId } from "@/types/channel";
+import { Prisma } from "@prisma/client";
 
 export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const auth = await requireAuth();
@@ -26,7 +27,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const { channelId } = body;
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const channel = await tx.channel.findUnique({
         where: { id: channelId },
         select: { id: true, userId: true, slug: true, displayName: true },

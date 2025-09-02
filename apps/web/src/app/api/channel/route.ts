@@ -8,6 +8,7 @@ import { NextRequest } from "next/server";
 import { ChannelUpdateSchema } from "@/schemas/channelUpdateSchema";
 import { ChannelUpdateInput } from "@/types/channel";
 import { deleteObjectIfExists } from "@/lib/services/s3Service";
+import { Prisma } from "@prisma/client";
 
 const TTL_SECONDS = 300;
 
@@ -117,7 +118,7 @@ export const PATCH = withLoggerAndErrorHandler(async (request: NextRequest) => {
     }
 
     const { oldAvatarKey, oldBannerKey, updatedChannel } =
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const current = await tx.channel.findUnique({
           where: { userId },
           select: { avatarS3Key: true, bannerS3Key: true },

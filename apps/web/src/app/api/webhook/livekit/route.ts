@@ -105,7 +105,7 @@ async function handleEvent(e: WebhookEvent) {
   switch (e.event) {
     /* =================== LIVE START =================== */
     case "ingress_started": {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await ensureStream(tx);
 
         // flip to live atomically (avoid double egress start)
@@ -130,7 +130,7 @@ async function handleEvent(e: WebhookEvent) {
     /* =================== LIVE END =================== */
     case "ingress_ended":
     case "room_finished": {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const s = await tx.stream.findUnique({
           where: { channelId: channel.id },
           select: { isLive: true },
