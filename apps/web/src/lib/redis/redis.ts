@@ -17,12 +17,12 @@ let redis: Redis;
 if (process.env.NODE_ENV === "production") {
   redis = new Redis(process.env.REDIS_URL, options);
 } else {
-  // @ts-ignore
+  // @ts-expect-error - Global redis instance for development
   if (!global.redis) {
-    // @ts-ignore
+    // @ts-expect-error - Global redis instance for development
     global.redis = new Redis(process.env.REDIS_URL, options);
   }
-  // @ts-ignore
+  // @ts-expect-error - Global redis instance for development
   redis = global.redis;
 }
 

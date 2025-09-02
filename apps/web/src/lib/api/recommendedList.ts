@@ -208,7 +208,9 @@ export async function getRecommendedList(limit = 12) {
       displayName: c.displayName,
       followerCount: c._count.follows,
       live: Boolean(c.stream?.isLive),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       avatarUrl: getAvatarUrl({ ...c } as any, c.user as any),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       bannerUrl: getBannerUrl({ ...c } as any),
     }));
 

@@ -12,8 +12,9 @@ export function useVodActions() {
       await axios.patch(`/api/vods/${vodId}`, data);
       toast.success("VOD updated successfully");
       return true;
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to update VOD";
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const message = err?.response?.data?.message || "Failed to update VOD";
       toast.error(message);
       return false;
     } finally {
@@ -27,8 +28,9 @@ export function useVodActions() {
       await axios.delete(`/api/vods/${vodId}`);
       toast.success("VOD deleted successfully");
       return true;
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to delete VOD";
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const message = err?.response?.data?.message || "Failed to delete VOD";
       toast.error(message);
       return false;
     } finally {

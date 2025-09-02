@@ -27,7 +27,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -42,7 +42,7 @@ import {
   MoreVertical,
   Ban,
   UserX,
-  Shield
+
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,9 +63,8 @@ interface UserMetadata {
   canChat: boolean;
 }
 
-export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps) {
+export function StreamChat({ chatSettings }: StreamChatProps) {
   const [message, setMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [banModalOpen, setBanModalOpen] = useState(false);
   const [banTargetUser, setBanTargetUser] = useState<{userId: string, username: string} | null>(null);
   const [banForm, setBanForm] = useState({
@@ -97,7 +96,7 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
   const getUserMetadata = (message: ChatMessage): UserMetadata | null => {
     try {
       // Check if message has participant with metadata
-      const participant = (message as any).participant || (message as any).from;
+      const participant = (message as { participant?: { metadata?: string }; from?: { metadata?: string } }).participant || (message as { participant?: { metadata?: string }; from?: { metadata?: string } }).from;
       return participant?.metadata ? JSON.parse(participant.metadata) : null;
     } catch {
       return null;
@@ -182,7 +181,12 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
 
     try {
       // Prepare ban data
-      const banData: any = {
+      const banData: {
+        userId: string;
+        reason?: string;
+        isPermanent: boolean;
+        expiresAt?: string;
+      } = {
         userId: banTargetUser.userId,
         reason: banForm.reason.trim() || undefined,
         isPermanent: banForm.isPermanent,
@@ -205,9 +209,9 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
       });
       
       toast.success(`${banTargetUser.username} has been banned`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to ban user:", error);
-      toast.error(error.response?.data?.error || "Failed to ban user");
+      toast.error((error as { response?: { data?: { error?: string } } })?.response?.data?.error || "Failed to ban user");
     }
   };
 
@@ -222,9 +226,9 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
         isPermanent: false,
       });
       toast.success(`${username} has been timed out for 5 minutes`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to timeout user:", error);
-      toast.error(error.response?.data?.error || "Failed to timeout user");
+      toast.error((error as { response?: { data?: { error?: string } } })?.response?.data?.error || "Failed to timeout user");
     }
   };
 
@@ -291,7 +295,7 @@ export function StreamChat({ channelDisplayName, chatSettings }: StreamChatProps
             ) : (
               chatMessages.map((msg) => {
                 const userMetadata = getUserMetadata(msg);
-                const participant = (msg as any).participant || (msg as any).from;
+                const participant = (msg as { participant?: { name?: string }; from?: { name?: string } }).participant || (msg as { participant?: { name?: string }; from?: { name?: string } }).from;
                 const username = userMetadata?.username || participant?.name || "Anonymous";
                 const userId = userMetadata?.userId;
                 const isOwner = userMetadata?.isChannelOwner || false;

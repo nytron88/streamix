@@ -55,7 +55,7 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
               </div>
             </div>
           )}
-          
+
           {/* Play Button Overlay */}
           <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="bg-white/90 rounded-full p-3">

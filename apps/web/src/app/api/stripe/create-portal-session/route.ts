@@ -20,8 +20,8 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
         userId,
       },
     });
-  } catch (error: any) {
-    return errorResponse(`Database error: ${error.message}`, 500);
+  } catch (error: unknown) {
+    return errorResponse(`Database error: ${(error as Error).message}`, 500);
   }
 
   if (!userStripeCustomer) {
@@ -42,9 +42,9 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
       customer: userStripeCustomer.stripeCustomerId,
       return_url: `${origin}/subscriptions`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return errorResponse(
-      `Stripe portal session creation failed: ${error.message}`,
+      `Stripe portal session creation failed: ${(error as Error).message}`,
       500
     );
   }

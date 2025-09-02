@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -82,8 +82,8 @@ export function ThumbnailUploadModal({ vodId, open, onOpenChange, onUploadSucces
       onUploadSuccess();
       onOpenChange(false);
       resetForm();
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to upload thumbnail";
+    } catch (error: unknown) {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to upload thumbnail";
       toast.error(message);
     } finally {
       setIsUploading(false);

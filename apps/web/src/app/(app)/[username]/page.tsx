@@ -33,7 +33,7 @@ export default function ChannelPage() {
     wsUrl,
     roomName,
     isLoading: tokenLoading,
-    error: tokenError,
+
     refresh: refreshToken,
   } = useViewerToken(username);
 
@@ -44,7 +44,7 @@ export default function ChannelPage() {
     if (channelData?.viewer) {
       setLocalFollowState(channelData.viewer.isFollowing);
     }
-  }, [channelData?.viewer?.isFollowing]);
+  }, [channelData?.viewer]);
 
   const handleFollowToggle = async () => {
     if (!channelData?.channel.id) return;
@@ -144,7 +144,7 @@ export default function ChannelPage() {
                         <Play className="h-8 w-8 text-primary" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">You're Live!</h3>
+                        <h3 className="text-lg font-semibold mb-2">You&apos;re Live!</h3>
                         <p className="text-muted-foreground">
                           Your stream is currently broadcasting. Monitor your chat and interact with your viewers below.
                         </p>
@@ -158,8 +158,6 @@ export default function ChannelPage() {
                   <StreamPlayer
                     token={token}
                     serverUrl={wsUrl}
-                    roomName={roomName}
-                    viewerName={username}
                     channelDisplayName={channel.displayName || channel.user.name}
                     chatSettings={channel.stream ? {
                       isChatEnabled: channel.stream.isChatEnabled,
@@ -185,8 +183,6 @@ export default function ChannelPage() {
                   <StreamPlayer
                     token={token}
                     serverUrl={wsUrl}
-                    roomName={roomName}
-                    viewerName={username}
                     channelDisplayName={channel.displayName || channel.user.name}
                     chatSettings={channel.stream ? {
                       isChatEnabled: channel.stream.isChatEnabled,

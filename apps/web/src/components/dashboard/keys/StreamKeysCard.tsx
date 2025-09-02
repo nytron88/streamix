@@ -64,7 +64,7 @@ export function StreamKeysCard({
       toast.success("Copied to clipboard", {
         description: `${label} copied successfully`,
       });
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy", {
         description: "Could not copy to clipboard",
       });
@@ -258,7 +258,7 @@ export function StreamKeysCard({
             </AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete your current stream keys and ingress configuration.
-              You'll need to update your streaming software with new keys after this action.
+              You&apos;ll need to update your streaming software with new keys after this action.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

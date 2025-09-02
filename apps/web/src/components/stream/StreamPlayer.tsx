@@ -300,7 +300,7 @@ function StreamContent({ channelDisplayName }: { channelDisplayName?: string }) 
                     <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Connecting to Stream</h3>
                     <p className="text-muted-foreground">
-                        Please wait while we connect you to {channelDisplayName}'s stream...
+                        Please wait while we connect you to {channelDisplayName}&apos;s stream...
                     </p>
                 </CardContent>
             </Card>
@@ -396,12 +396,10 @@ function StreamContent({ channelDisplayName }: { channelDisplayName?: string }) 
 export function StreamPlayer({
     token,
     serverUrl,
-    roomName,
-    viewerName,
     channelDisplayName,
     chatSettings,
     ownerMode = false,
-}: StreamPlayerProps) {
+}: Omit<StreamPlayerProps, 'roomName' | 'viewerName'>) {
     if (!serverUrl) {
         return (
             <Card className="w-full aspect-video flex items-center justify-center bg-muted">

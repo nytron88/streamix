@@ -4,9 +4,8 @@ import { useState } from "react";
 import { useVods } from "@/hooks/useVods";
 import { VodList } from "@/components/dashboard/vods/VodList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Video, Eye, Clock, TrendingUp, Plus, Filter, Search } from "lucide-react";
+import { Video, Eye, Clock, TrendingUp, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -84,7 +83,7 @@ export default function VodsPage() {
                   className="pl-10"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+              <Select value={statusFilter} onValueChange={(value: "PUBLIC" | "SUB_ONLY" | "all") => setStatusFilter(value)}>
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>

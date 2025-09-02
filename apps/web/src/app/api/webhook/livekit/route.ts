@@ -24,8 +24,10 @@ function extractS3KeyAndMeta(e: WebhookEvent): {
   key: string | null;
   etag?: string;
 } {
-  const info: any = e.egressInfo ?? {};
-  const fr = info.fileResults?.[0] ?? undefined;
+  const info = e.egressInfo ?? {};
+  const fr =
+    (info as { fileResults?: Array<{ filename?: string; etag?: string }> })
+      ?.fileResults?.[0] ?? undefined;
   if (fr) {
     if (typeof fr.filename === "string" && fr.filename.length > 0) {
       return {
@@ -33,15 +35,23 @@ function extractS3KeyAndMeta(e: WebhookEvent): {
         etag: typeof fr.etag === "string" ? fr.etag : undefined,
       };
     }
-    if (typeof fr.location === "string" && fr.location.length > 0) {
-      const loc: string = fr.location;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      typeof (fr as any).location === "string" &&
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (fr as any).location.length > 0
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const loc: string = (fr as any).location;
       const prefix = `https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/`;
       if (loc.startsWith(prefix)) return { key: loc.slice(prefix.length) };
       const idx = loc.indexOf(`/${S3_BUCKET}/`);
       if (idx >= 0) return { key: loc.slice(idx + S3_BUCKET.length + 2) };
     }
   }
-  const legacy = info.encodedFile ?? info.file;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const legacy = (info as any).encodedFile ?? (info as any).file;
   if (legacy?.filepath) {
     return {
       key: legacy.filepath,
@@ -143,7 +153,7 @@ async function handleEvent(e: WebhookEvent) {
 
     /* ============== EGRESS STATUS → CREATE VOD ============== */
     case "egress_updated": {
-      const info: any = e.egressInfo;
+      const info = e.egressInfo;
       const hasFinalFiles =
         (Array.isArray(info?.fileResults) && info.fileResults.length > 0) ||
         info?.result?.case === "file";

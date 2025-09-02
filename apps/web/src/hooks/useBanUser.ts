@@ -14,8 +14,9 @@ export function useBanUser() {
       
       toast.success("User banned successfully");
       return response.data.payload.ban;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || "Failed to ban user";
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      const errorMessage = err?.response?.data?.error || "Failed to ban user";
       toast.error(errorMessage);
       return null;
     } finally {
@@ -27,12 +28,13 @@ export function useBanUser() {
     try {
       setLoading(true);
       
-      const response = await axios.post("/api/bans/unban", { banId });
+      await axios.post("/api/bans/unban", { banId });
       
       toast.success("User unbanned successfully");
       return true;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || "Failed to unban user";
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      const errorMessage = err?.response?.data?.error || "Failed to unban user";
       toast.error(errorMessage);
       return false;
     } finally {

@@ -196,7 +196,6 @@ model Vod {
   s3ETag           String?
 
   title            String
-  durationS        Int?
   visibility       VodVisibility @default(PUBLIC)
   thumbnailS3Key   String?
 

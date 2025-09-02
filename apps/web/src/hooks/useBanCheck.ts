@@ -22,12 +22,13 @@ export function useBanCheck(channelId: string | null) {
         });
 
         setIsBanned(response.data.payload.isBanned);
-      } catch (err: any) {
+      } catch (err: unknown) {
         // If user is not authenticated, assume they're not banned
-        if (err.response?.status === 401) {
+        const error = err as { response?: { status?: number; data?: { error?: string } } };
+        if (error?.response?.status === 401) {
           setIsBanned(false);
         } else {
-          setError(err.response?.data?.error || "Failed to check ban status");
+          setError(error?.response?.data?.error || "Failed to check ban status");
         }
       } finally {
         setLoading(false);

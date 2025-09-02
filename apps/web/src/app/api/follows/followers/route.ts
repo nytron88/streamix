@@ -103,7 +103,7 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
 
     // Extract all blocked user IDs
     const blockedUserIds = new Set<string>();
-    
+
     allBans.forEach((ban) => {
       if (ban.channelId === myChannel.id) {
         // User banned from this channel
@@ -116,8 +116,8 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
 
     // Find follows excluding all blocked users
     const follows = await prisma.follow.findMany({
-      where: { 
-        channelId: myChannel.id, 
+      where: {
+        channelId: myChannel.id,
         ...cursorWhere,
         userId: {
           notIn: Array.from(blockedUserIds),
@@ -173,8 +173,40 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
       return {
         userId: f.userId,
         name: u?.name ?? null,
-        avatarUrl: u ? getAvatarUrl(u.channel as any, u as any) : null,
-        bannerUrl: u ? getBannerUrl(u.channel as any) : null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        avatarUrl: u?.channel
+          ? getAvatarUrl(
+              {
+                ...u.channel,
+                id: "",
+                userId: "",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                slug: null,
+                displayName: null,
+                bio: null,
+                category: null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              u as any
+            )
+          : null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        bannerUrl: u?.channel
+          ? getBannerUrl({
+              ...u.channel,
+              id: "",
+              userId: "",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              slug: null,
+              displayName: null,
+              bio: null,
+              category: null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any)
+          : null,
         followedAt: f.createdAt.toISOString(),
       };
     });

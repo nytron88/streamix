@@ -22,10 +22,8 @@ type ClerkUser = {
 
 type HandlerResult = null | NextResponse;
 
-export async function handleUserCreated(
-  data: ClerkUser,
-  svixId: string,
-  svixTimestamp: string
+async function handleUserCreated(
+  data: ClerkUser
 ): Promise<HandlerResult> {
   const email =
     data.email_addresses?.find((e) => e.id === data.primary_email_address_id)
@@ -90,10 +88,8 @@ export async function handleUserCreated(
   return null;
 }
 
-export async function handleUserUpdated(
-  data: ClerkUser,
-  svixId: string,
-  svixTimestamp: string
+async function handleUserUpdated(
+  data: ClerkUser
 ): Promise<HandlerResult> {
   const email =
     data.email_addresses?.find((e) => e.id === data.primary_email_address_id)
@@ -133,10 +129,8 @@ export async function handleUserUpdated(
   return null;
 }
 
-export async function handleUserDeleted(
-  data: { id?: string },
-  svixId: string,
-  svixTimestamp: string
+async function handleUserDeleted(
+  data: { id?: string }
 ): Promise<HandlerResult> {
   if (!data.id) return null;
 
@@ -259,15 +253,15 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
 
     switch (type) {
       case "user.created":
-        handlerResult = await handleUserCreated(data, svixId, svixTimestamp);
+        handlerResult = await handleUserCreated(data);
         break;
 
       case "user.updated":
-        handlerResult = await handleUserUpdated(data, svixId, svixTimestamp);
+        handlerResult = await handleUserUpdated(data);
         break;
 
       case "user.deleted":
-        handlerResult = await handleUserDeleted(data, svixId, svixTimestamp);
+        handlerResult = await handleUserDeleted(data);
         break;
 
       default:

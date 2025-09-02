@@ -240,7 +240,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
 /**
  * GET /api/bans - Get all bans for the authenticated user's channel
  */
-export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
+export const GET = withLoggerAndErrorHandler(async () => {
   const auth = await requireAuth();
   if (isNextResponse(auth)) return auth;
 

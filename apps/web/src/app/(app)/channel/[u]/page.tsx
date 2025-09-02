@@ -9,13 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuTrigger,
-    DropdownMenuSeparator 
-} from "@/components/ui/dropdown-menu";
+
 import {
     Dialog,
     DialogContent,
@@ -31,7 +25,7 @@ import {
     Heart,
     Users,
     Calendar,
-    MapPin,
+
     Star,
     Play,
     Clock,
@@ -44,9 +38,7 @@ import {
     UserMinus,
     AlertCircle,
     ExternalLink,
-    Ban,
-    UserX,
-    MoreVertical
+    UserX
 } from "lucide-react";
 import { toast } from "sonner";
 import { useChannelBySlug } from "@/hooks/useChannelBySlug";
@@ -78,9 +70,7 @@ export default function ChannelPage() {
     // Subscription status
     const {
         isSubscribed,
-        subscription,
-        isLoading: isSubscriptionLoading,
-        refresh: refreshSubscription
+        isLoading: isSubscriptionLoading
     } = useSubscriptionStatus(channelData?.channel?.id || null);
 
     // Local states
@@ -129,8 +119,8 @@ export default function ChannelPage() {
                 toast.success(`Following ${channel.displayName || 'channel'}!`);
             }
             refresh(); // Refresh data
-        } catch (error: any) {
-            toast.error(error.message || "Failed to update follow status");
+        } catch (error: unknown) {
+            toast.error((error as Error).message || "Failed to update follow status");
         }
     };
 
@@ -158,9 +148,9 @@ export default function ChannelPage() {
                 }
 
                 window.open(data.payload.url, '_blank');
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Subscription error:', error);
-                toast.error(error.message || "Failed to access billing portal");
+                toast.error((error as Error).message || "Failed to access billing portal");
             }
             return;
         }
@@ -203,9 +193,9 @@ export default function ChannelPage() {
             if (error) {
                 throw new Error(error.message);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Subscription error:', error);
-            toast.error(error.message || "Failed to start subscription process");
+            toast.error((error as Error).message || "Failed to start subscription process");
         } finally {
             setIsSubscribing(false);
         }
@@ -216,7 +206,12 @@ export default function ChannelPage() {
         if (!channel?.user?.id) return;
 
         // Prepare ban data
-        const banData: any = {
+        const banData: {
+            userId: string;
+            reason?: string;
+            isPermanent: boolean;
+            expiresAt?: string;
+        } = {
             userId: channel.user.id,
             reason: banForm.reason.trim() || undefined,
             isPermanent: banForm.isPermanent,
@@ -303,7 +298,7 @@ export default function ChannelPage() {
                         <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <h3 className="text-lg font-medium mb-2">Channel Not Found</h3>
                         <p className="text-muted-foreground mb-4">
-                            The channel you're looking for doesn't exist or may have been removed.
+                            The channel you&apos;re looking for doesn&apos;t exist or may have been removed.
                         </p>
                         <Link href="/browse">
                             <Button className="cursor-pointer">Browse Channels</Button>
@@ -548,7 +543,7 @@ export default function ChannelPage() {
                                 <p className="text-muted-foreground">
                                     {isOwner
                                         ? "Start streaming to see your content here!"
-                                        : "This channel hasn't streamed recently."
+                                        : "This channel hasn&apos;t streamed recently."
                                     }
                                 </p>
                                 {isOwner && (

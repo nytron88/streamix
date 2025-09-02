@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Home, TrendingUp, Users, LayoutDashboard, Bell, CreditCard, Video } from "lucide-react";
+import { Home, Users, LayoutDashboard, Bell, CreditCard, Video } from "lucide-react";
 import { RecommendedChannel } from "@/types/recommendations";
 
 

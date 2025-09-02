@@ -183,11 +183,11 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Stripe webhook signature verification failed", {
-      error: error.message,
+      error: (error as Error).message,
     });
-    return errorResponse(`Webhook Error: ${error.message}`, 400);
+    return errorResponse(`Webhook Error: ${(error as Error).message}`, 400);
   }
 
   logger.info("Processing Stripe webhook", {
@@ -196,7 +196,7 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
   });
 
   try {
-    let handlerResult: any = null;
+    let handlerResult: unknown = null;
 
     switch (event.type) {
       case "checkout.session.completed":

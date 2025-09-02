@@ -111,7 +111,7 @@ export default function BansPage() {
                         <Shield className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                         <h3 className="text-xl font-semibold mb-2">No Banned Users</h3>
                         <p className="text-muted-foreground max-w-md mx-auto">
-                            You haven't banned any users from your channel yet.
+                            You haven&apos;t banned any users from your channel yet.
                             Banned users will appear here for you to manage.
                         </p>
                     </CardContent>

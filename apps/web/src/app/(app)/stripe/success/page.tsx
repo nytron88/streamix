@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import axios from 'axios';
@@ -12,7 +12,7 @@ import type { StripeCheckoutSession } from '@/types/stripe';
 
 type VerificationState = 'loading' | 'success' | 'error' | 'invalid';
 
-export default function SuccessPage() {
+function SuccessPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [verificationState, setVerificationState] = useState<VerificationState>('loading');
@@ -46,7 +46,7 @@ export default function SuccessPage() {
                 setVerificationState('error');
                 setErrorMessage(data.message || 'Failed to verify session');
             }
-        } catch (error) {
+        } catch {
             setVerificationState('error');
             setErrorMessage('An unexpected error occurred');
         }
@@ -135,7 +135,7 @@ export default function SuccessPage() {
                             <div>
                                 <CardTitle className="text-2xl text-red-800 dark:text-red-200">Payment Verification Failed</CardTitle>
                                 <CardDescription className="mt-2">
-                                    We couldn't verify your payment. Please contact support if you believe this is an error.
+                                    We couldn&apos;t verify your payment. Please contact support if you believe this is an error.
                                 </CardDescription>
                             </div>
                         </CardHeader>
@@ -194,5 +194,22 @@ export default function SuccessPage() {
         <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
             {renderContent()}
         </div>
+    );
+}
+
+export default function SuccessPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+                <Card className="w-full max-w-md">
+                    <CardContent className="flex flex-col items-center space-y-4 pt-6">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="text-muted-foreground">Loading...</p>
+                    </CardContent>
+                </Card>
+            </div>
+        }>
+            <SuccessPageContent />
+        </Suspense>
     );
 }

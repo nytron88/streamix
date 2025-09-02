@@ -39,9 +39,9 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
     }
 
     finalPriceId = prices.data[0].id;
-  } catch (error: any) {
+  } catch (error: unknown) {
     return errorResponse(
-      `Failed to fetch product pricing: ${error.message}`,
+      `Failed to fetch product pricing: ${(error as Error).message}`,
       500
     );
   }

@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+
 import {
   Heart,
   Users,
@@ -35,8 +35,8 @@ export default function FollowingPage() {
       await unfollowChannel(channel.channelId);
       toast.success(`Unfollowed ${channel.displayName || 'channel'}`);
       refresh(); // Refresh the following list
-    } catch (error: any) {
-      toast.error(error.message || "Failed to unfollow channel");
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Failed to unfollow channel");
     } finally {
       setUnfollowingChannels(prev => {
         const newSet = new Set(prev);

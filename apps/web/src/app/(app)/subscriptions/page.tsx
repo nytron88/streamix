@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Star,
   Users,
-  Calendar,
+
   Radio,
   ExternalLink,
   CreditCard,
@@ -45,9 +45,9 @@ export default function SubscriptionsPage() {
       }
 
       window.open(data.payload.url, '_blank');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Billing portal error:', error);
-      toast.error(error.message || "Failed to access billing portal");
+      toast.error((error as Error).message || "Failed to access billing portal");
     } finally {
       setManagingSubscription(null);
     }

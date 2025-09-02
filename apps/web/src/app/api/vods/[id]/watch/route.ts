@@ -64,9 +64,9 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest, { params 
         visibility: vod.visibility,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return errorResponse("Failed to generate watch URL", 500, {
-      message: error.message,
+      message: (error as Error).message,
     });
   }
 });

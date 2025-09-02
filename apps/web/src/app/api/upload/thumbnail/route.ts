@@ -17,7 +17,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
 
   try {
     const body = await req.json();
-    const { contentType, vodId } = UploadSchema.parse(body);
+    const { contentType } = UploadSchema.parse(body);
 
     // Validate file type
     if (!contentType.startsWith('image/')) {
@@ -40,9 +40,9 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       requiredHeaders,
       expiresIn,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return errorResponse("Failed to generate upload URL", 500, {
-      message: error.message,
+      message: (error as Error).message,
     });
   }
 });

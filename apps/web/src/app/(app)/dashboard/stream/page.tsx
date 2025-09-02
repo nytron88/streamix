@@ -2,19 +2,15 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Video,
-  Users,
   MessageCircle,
   Settings,
   Play,
   Square,
-  Loader2,
   AlertCircle,
   ExternalLink
 } from "lucide-react";
@@ -93,9 +89,9 @@ export default function MyStreamPage() {
           wsUrl: tokenResponse.data.payload.wsUrl,
           roomName: tokenResponse.data.payload.roomName,
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch stream data:", err);
-        setError(err.response?.data?.message || "Failed to load stream data");
+        setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to load stream data");
       } finally {
         setLoading(false);
       }
@@ -265,7 +261,6 @@ export default function MyStreamPage() {
               <StreamPlayer
                 token={streamData.token}
                 serverUrl={streamData.wsUrl}
-                roomName={streamData.roomName}
                 channelDisplayName={streamData.channelDisplayName}
                 chatSettings={streamData.chatSettings}
                 ownerMode={true}

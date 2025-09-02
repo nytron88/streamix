@@ -6,13 +6,12 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   ProfileHeader,
   ProfileCard,
-  ProfileStats,
   ProfileLoadingState,
   ProfileErrorState,
 } from "./index";
 
 export function Profile() {
-  const { channelData, setChannelData, loading, error, setError, refetch } = useChannelData();
+  const { channelData, setChannelData, loading, error, refetch } = useChannelData();
 
   const {
     isEditing,

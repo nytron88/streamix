@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw } from "lucide-react";
@@ -24,7 +24,7 @@ export function VideoPlayer({ vodId, title, open, onOpenChange }: VideoPlayerPro
   const [volume, setVolume] = useState(1);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const getSignedUrl = async () => {
+  const getSignedUrl = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await axios.post(`/api/vods/${vodId}/watch`, {
@@ -33,19 +33,19 @@ export function VideoPlayer({ vodId, title, open, onOpenChange }: VideoPlayerPro
 
       const { signedUrl } = response.data.payload;
       setSignedUrl(signedUrl);
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Failed to load video";
+    } catch (error: unknown) {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to load video";
       toast.error(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [vodId]);
 
   useEffect(() => {
     if (open && !signedUrl) {
       getSignedUrl();
     }
-  }, [open, vodId]);
+  }, [open, getSignedUrl, signedUrl]);
 
   const togglePlay = () => {
     if (videoRef.current) {

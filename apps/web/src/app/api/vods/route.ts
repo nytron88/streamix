@@ -41,7 +41,7 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
   }
 
   // Build where clause
-  const where: any = {
+  const where: Record<string, unknown> = {
     channelId: channel.id,
   };
 

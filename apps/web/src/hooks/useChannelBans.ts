@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import axios from "axios";
-import { BanItem, BansResponse } from "@/types/ban";
+import { BansResponse } from "@/types/ban";
 
 const fetcher = async (url: string): Promise<BansResponse> => {
   const response = await axios.get(url);

@@ -116,13 +116,15 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
             ],
           },
           // Bans where this user has banned others from their channel
-          userChannel ? {
-            channelId: userChannel.id,
-            OR: [
-              { expiresAt: null }, // Permanent ban
-              { expiresAt: { gt: new Date() } }, // Non-expired ban
-            ],
-          } : {},
+          userChannel
+            ? {
+                channelId: userChannel.id,
+                OR: [
+                  { expiresAt: null }, // Permanent ban
+                  { expiresAt: { gt: new Date() } }, // Non-expired ban
+                ],
+              }
+            : {},
         ].filter(Boolean),
       },
       select: {
@@ -157,10 +159,10 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
     }
 
     const allBlockedChannelIds = Array.from(blockedChannelIds);
-    
+
     const channels = await prisma.channel.findMany({
-      where: { 
-        id: { 
+      where: {
+        id: {
           in: channelIds,
           notIn: allBlockedChannelIds.length > 0 ? allBlockedChannelIds : [],
         },
@@ -173,11 +175,9 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
         bannerS3Key: true,
         user: { select: { imageUrl: true } },
         _count: { select: { follows: true } },
-        // detect live with a cheap existence check
-        sessions: {
-          where: { endedAt: null },
-          select: { id: true },
-          take: 1,
+        // detect live status
+        stream: {
+          select: { isLive: true },
         },
       },
     });
@@ -191,12 +191,11 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
         slug: c!.slug,
         displayName: c!.displayName,
         followerCount: c!._count.follows,
-        live: (c!.sessions?.length ?? 0) > 0,
-        avatarUrl: getAvatarUrl(
-          { avatarS3Key: c!.avatarS3Key, bannerS3Key: c!.bannerS3Key } as any,
-          c!.user as any
-        ),
-        bannerUrl: getBannerUrl({ bannerS3Key: c!.bannerS3Key } as any),
+        live: c!.stream?.isLive ?? false,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        avatarUrl: getAvatarUrl(c! as any, c!.user as any),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        bannerUrl: getBannerUrl(c! as any),
       }));
 
     const payload = { items, nextCursor };

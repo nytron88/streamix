@@ -83,9 +83,9 @@ export default function ChatSettingsPage() {
             setSettings(updatedSettings);
             setOriginalSettings(updatedSettings);
             toast.success("Chat settings saved successfully");
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Failed to save chat settings:", error);
-            const errorMessage = error.response?.data?.message || "Failed to save chat settings";
+            const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to save chat settings";
             toast.error(errorMessage);
         } finally {
             setSaving(false);

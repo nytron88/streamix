@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,7 @@ export function DeleteVodDialog({ vod, open, onOpenChange, onDeleteSuccess }: De
         <AlertDialogHeader>
           <AlertDialogTitle>Delete VOD</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{vod.title}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{vod.title}&quot;? This action cannot be undone.
             The video file and all associated data will be permanently removed.
           </AlertDialogDescription>
         </AlertDialogHeader>
