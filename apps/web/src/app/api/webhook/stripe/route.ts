@@ -11,7 +11,63 @@ import { unixToDate } from "@/utils/helpers";
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
+/* =============== CHECKOUT (ONE-TIME TIPS) =============== */
+async function handleTipCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const metadata = session.metadata ?? {};
+  if (metadata.purpose !== "tip") return null; // ignore non-tip sessions
+
+  const channelId = metadata.channelId;
+  const viewerId = metadata.viewerId;
+  const amountCents = Number(session.amount_total ?? 0);
+
+  if (!channelId || !amountCents) {
+    logger.warn("Tip checkout missing channelId/amount", {
+      sessionId: session.id,
+      metadata,
+    });
+    return null;
+  }
+
+  // Ensure we have a Stripe customer record for the viewer (if logged in)
+  if (viewerId && session.customer) {
+    await prisma.stripeCustomer.upsert({
+      where: { userId: viewerId },
+      update: { stripeCustomerId: session.customer as string },
+      create: {
+        userId: viewerId,
+        stripeCustomerId: session.customer as string,
+      },
+    });
+  }
+
+  // Record the tip in DB
+  await prisma.tip.create({
+    data: {
+      userId: viewerId ?? null,
+      channelId,
+      amountCents,
+      currency: session.currency ?? "usd",
+      stripePaymentIntent: session.payment_intent as string,
+      status: "SUCCEEDED",
+    },
+  });
+
+  logger.info("Tip recorded", {
+    channelId,
+    viewerId,
+    amountCents,
+    sessionId: session.id,
+    eventType: "checkout.session.completed",
+  });
+
+  return null;
+}
+
+/* =============== CHECKOUT (CUSTOMER SAVE) =============== */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  // Only handle non-tip sessions here (subscriptions etc.)
+  if (session.metadata?.purpose === "tip") return null;
+
   const userId = session.client_reference_id;
   const stripeCustomerId = session.customer as string;
 
@@ -20,31 +76,25 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       sessionId: session.id,
       eventType: "checkout.session.completed",
     });
-    throw new Error("Missing userId or customerId in checkout session");
+    return null;
   }
 
-  // Create StripeCustomer record
   await prisma.stripeCustomer.upsert({
     where: { userId },
-    update: {
-      stripeCustomerId,
-    },
-    create: {
-      userId,
-      stripeCustomerId,
-    },
+    update: { stripeCustomerId },
+    create: { userId, stripeCustomerId },
   });
 
   logger.info("StripeCustomer created/updated", {
     userId,
     stripeCustomerId,
     sessionId: session.id,
-    eventType: "checkout.session.completed",
   });
 
   return null;
 }
 
+/* =============== SUBSCRIPTIONS =============== */
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.userId as string | undefined;
   const channelId = subscription.metadata?.channelId as string | undefined;
@@ -54,9 +104,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
       subscriptionId: subscription.id,
       eventType: "customer.subscription.created",
     });
-    throw new Error(
-      "Missing userId/channelId metadata for subscription creation"
-    );
+    return null;
   }
 
   await prisma.subscription.upsert({
@@ -79,14 +127,12 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     },
   });
 
-  // Clear user subscriptions cache
-  await Promise.allSettled([redis.del(`subscriptions:${userId}`)]);
+  await redis.del(`subscriptions:${userId}`);
 
   logger.info("Subscription created/upserted", {
     stripeSubscriptionId: subscription.id,
     userId,
     channelId,
-    eventType: "customer.subscription.created",
   });
 
   return null;
@@ -106,140 +152,137 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   if (updated.count === 0) {
     logger.warn("Subscription not found in database for update event", {
       stripeSubscriptionId: subscription.id,
-      eventType: "customer.subscription.updated",
     });
-    throw new Error("No matching subscription found for update");
+    return null;
   }
 
-  // Clear cache for the affected user
-  const subscriptionRecord = await prisma.subscription.findUnique({
+  const record = await prisma.subscription.findUnique({
     where: { stripeSubId: subscription.id },
     select: { userId: true },
   });
+  if (record) await redis.del(`subscriptions:${record.userId}`);
 
-  if (subscriptionRecord) {
-    await Promise.allSettled([
-      redis.del(`subscriptions:${subscriptionRecord.userId}`),
-    ]);
-  }
-
-  logger.info("Subscription updated event processed", {
+  logger.info("Subscription updated", {
     stripeSubscriptionId: subscription.id,
     status: subscription.status,
-    eventType: "customer.subscription.updated",
   });
 
   return null;
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  const updated = await prisma.subscription.updateMany({
+  await prisma.subscription.updateMany({
     where: { stripeSubId: subscription.id },
-    data: {
-      status: "CANCELED",
-      currentPeriodEnd: null,
-    },
+    data: { status: "CANCELED", currentPeriodEnd: null },
   });
 
-  if (updated.count === 0) {
-    logger.warn("Subscription not found in database for delete event", {
-      stripeSubscriptionId: subscription.id,
-      eventType: "customer.subscription.deleted",
-    });
-    throw new Error("No matching subscription found for delete");
-  }
-
-  // Clear cache for the affected user
-  const subscriptionRecord = await prisma.subscription.findUnique({
+  const record = await prisma.subscription.findUnique({
     where: { stripeSubId: subscription.id },
     select: { userId: true },
   });
+  if (record) await redis.del(`subscriptions:${record.userId}`);
 
-  if (subscriptionRecord) {
-    await Promise.allSettled([
-      redis.del(`subscriptions:${subscriptionRecord.userId}`),
-    ]);
-  }
-
-  logger.info("Subscription deleted event processed", {
+  logger.info("Subscription deleted", {
     stripeSubscriptionId: subscription.id,
-    eventType: "customer.subscription.deleted",
   });
 
   return null;
 }
 
+/* =============== INVOICE (RENEWALS) =============== */
+async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
+  if (!invoice.lines.data[0].subscription) return null;
+  const subscriptionId = invoice.lines.data[0].subscription as string;
+
+  const updated = await prisma.subscription.updateMany({
+    where: { stripeSubId: subscriptionId },
+    data: {
+      status: "ACTIVE",
+      currentPeriodEnd: unixToDate(invoice.lines.data[0].period.end),
+    },
+  });
+
+  if (updated.count > 0) {
+    logger.info("Invoice payment succeeded → subscription extended", {
+      stripeSubId: subscriptionId,
+      periodEnd: invoice.lines.data[0].period.end,
+    });
+  }
+
+  return null;
+}
+
+/* =============== FALLBACK =============== */
 function handleUnknownEvent(eventType: string, eventId: string) {
   logger.warn("Unhandled Stripe webhook event type", { eventType, eventId });
   return null;
 }
 
+/* =============== MAIN HANDLER =============== */
 export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
   const body = await request.text();
   const sig = request.headers.get("stripe-signature");
-
   if (!sig) return errorResponse("Stripe signature is required", 400);
 
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-  } catch (error: unknown) {
+  } catch (err) {
     logger.error("Stripe webhook signature verification failed", {
-      error: (error as Error).message,
+      error: (err as Error).message,
     });
-    return errorResponse(`Webhook Error: ${(error as Error).message}`, 400);
+    return errorResponse(`Webhook Error: ${(err as Error).message}`, 400);
   }
 
-  logger.info("Processing Stripe webhook", {
-    eventType: event.type,
-    eventId: event.id,
-  });
-
   try {
-    let handlerResult: unknown = null;
-
     switch (event.type) {
       case "checkout.session.completed":
-        handlerResult = await handleCheckoutCompleted(
+        await handleTipCheckoutCompleted(
+          event.data.object as Stripe.Checkout.Session
+        );
+        await handleCheckoutCompleted(
           event.data.object as Stripe.Checkout.Session
         );
         break;
 
       case "customer.subscription.created":
-        handlerResult = await handleSubscriptionCreated(
+        await handleSubscriptionCreated(
           event.data.object as Stripe.Subscription
         );
         break;
 
       case "customer.subscription.updated":
-        handlerResult = await handleSubscriptionUpdated(
+        await handleSubscriptionUpdated(
           event.data.object as Stripe.Subscription
         );
         break;
 
       case "customer.subscription.deleted":
-        handlerResult = await handleSubscriptionDeleted(
+        await handleSubscriptionDeleted(
           event.data.object as Stripe.Subscription
         );
         break;
 
+      case "invoice.payment_succeeded":
+        await handleInvoicePaymentSucceeded(
+          event.data.object as Stripe.Invoice
+        );
+        break;
+
       default:
-        handlerResult = handleUnknownEvent(event.type, event.id);
+        handleUnknownEvent(event.type, event.id);
         break;
     }
-
-    if (handlerResult instanceof NextResponse) return handlerResult;
   } catch (err) {
     logger.error(
-      `Error processing Stripe webhook event type ${event.type}:`,
+      `Error processing Stripe webhook event type ${event.type}`,
       err
     );
     return errorResponse(
       err instanceof Error
         ? err.message
         : `Error processing ${event.type} webhook`,
-      500,
-      err instanceof Error ? err.message : undefined
+      500
     );
   }
 
