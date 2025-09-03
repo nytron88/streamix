@@ -21,6 +21,7 @@ type StreamData = {
   isLive: boolean;
   name: string | null;
   channelDisplayName: string;
+  channelId: string;
   viewerCount: number;
   chatSettings: {
     isChatEnabled: boolean;
@@ -59,6 +60,7 @@ export default function MyStreamPage() {
             isLive: false,
             name: channelData.channel.stream?.name || null,
             channelDisplayName: channelData.channel.displayName || "Your Stream",
+            channelId: channelData.channel.id,
             viewerCount: 0,
             chatSettings: {
               isChatEnabled: channelData.channel.stream?.isChatEnabled || true,
@@ -78,6 +80,7 @@ export default function MyStreamPage() {
           isLive: true,
           name: channelData.channel.stream.name || "Live Stream",
           channelDisplayName: channelData.channel.displayName || "Your Stream",
+          channelId: channelData.channel.id,
           viewerCount: 0, // TODO: Get real viewer count from participants
           chatSettings: {
             isChatEnabled: channelData.channel.stream.isChatEnabled,
@@ -262,6 +265,7 @@ export default function MyStreamPage() {
                 token={streamData.token}
                 serverUrl={streamData.wsUrl}
                 channelDisplayName={streamData.channelDisplayName}
+                channelId={streamData.channelId}
                 chatSettings={streamData.chatSettings}
                 ownerMode={true}
               />

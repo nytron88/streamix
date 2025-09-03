@@ -184,6 +184,7 @@ export default function ChannelPage() {
                     token={token}
                     serverUrl={wsUrl}
                     channelDisplayName={channel.displayName || channel.user.name}
+                    channelId={channel.id}
                     chatSettings={channel.stream ? {
                       isChatEnabled: channel.stream.isChatEnabled,
                       isChatDelayed: channel.stream.isChatDelayed,

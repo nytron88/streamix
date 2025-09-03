@@ -46,6 +46,7 @@ import { useFollowActions } from "@/hooks/useFollowActions";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { useBanUser } from "@/hooks/useBanUser";
 import { useUser as useClerkUser } from "@clerk/nextjs";
+import { TipModal } from "@/components/stream/TipModal";
 
 interface ChannelStats {
     followers: number;
@@ -63,7 +64,7 @@ export default function ChannelPage() {
     // Channel data
     const { data: channelData, error, isLoading, refresh } = useChannelBySlug(slug);
     const { followChannel, unfollowChannel, isLoading: isFollowingAction } = useFollowActions();
-    
+
     // Ban functionality
     const { banUser, loading: banLoading } = useBanUser();
 
@@ -90,7 +91,7 @@ export default function ChannelPage() {
     const isFollowing = viewer?.isFollowing || false;
     const isBanned = viewer?.isBanned || false;
     const isLive = channel?.stream?.isLive || false;
-    
+
     // Check if current user can moderate (they must own a channel and not be viewing their own channel)
     const canModerate = clerkUser && !isOwner && channel?.user?.id && !isBanned;
 
@@ -232,7 +233,7 @@ export default function ChannelPage() {
                 expiresAt: "",
                 isPermanent: false,
             });
-            
+
             // Refresh channel data to update ban status
             refresh();
             toast.success(`${channel.displayName || channel.user.name || 'User'} has been banned from your channel`);
@@ -454,10 +455,15 @@ export default function ChannelPage() {
                                 )}
                             </Button>
 
-                            <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
-                                <Gift className="h-4 w-4" />
-                                Tip
-                            </Button>
+                            <TipModal
+                                channelId={channel.id}
+                                channelName={channel.displayName || channel.user?.name || 'Unknown Channel'}
+                            >
+                                <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
+                                    <Gift className="h-4 w-4" />
+                                    Tip
+                                </Button>
+                            </TipModal>
                         </div>
                     )}
 
@@ -644,14 +650,18 @@ export default function ChannelPage() {
                                 <CardTitle>Quick Actions</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-start cursor-pointer"
-                                    onClick={() => toast.info("Feature coming soon!")}
+                                <TipModal
+                                    channelId={channel.id}
+                                    channelName={channel.displayName || channel.user?.name || 'Unknown Channel'}
                                 >
-                                    <Gift className="h-4 w-4 mr-2" />
-                                    Send Tip
-                                </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start cursor-pointer"
+                                    >
+                                        <Gift className="h-4 w-4 mr-2" />
+                                        Send Tip
+                                    </Button>
+                                </TipModal>
 
                                 <Button
                                     variant="outline"
@@ -667,7 +677,7 @@ export default function ChannelPage() {
                                     <div className="pt-2">
                                         <Separator className="mb-3" />
                                         <p className="text-xs text-muted-foreground mb-2 font-medium">Moderation</p>
-                                        
+
                                         <Dialog open={banModalOpen} onOpenChange={setBanModalOpen}>
                                             <DialogTrigger asChild>
                                                 <Button
@@ -705,10 +715,10 @@ export default function ChannelPage() {
                                                         <Switch
                                                             id="permanent-ban"
                                                             checked={banForm.isPermanent}
-                                                            onCheckedChange={(checked) => setBanForm(prev => ({ 
-                                                                ...prev, 
+                                                            onCheckedChange={(checked) => setBanForm(prev => ({
+                                                                ...prev,
                                                                 isPermanent: checked,
-                                                                expiresAt: checked ? "" : prev.expiresAt 
+                                                                expiresAt: checked ? "" : prev.expiresAt
                                                             }))}
                                                         />
                                                         <Label htmlFor="permanent-ban">Permanent ban</Label>
@@ -731,14 +741,14 @@ export default function ChannelPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex justify-end space-x-2">
-                                                    <Button 
-                                                        variant="outline" 
+                                                    <Button
+                                                        variant="outline"
                                                         onClick={() => setBanModalOpen(false)}
                                                         disabled={banLoading}
                                                     >
                                                         Cancel
                                                     </Button>
-                                                    <Button 
+                                                    <Button
                                                         variant="destructive"
                                                         onClick={handleBanUser}
                                                         disabled={banLoading}

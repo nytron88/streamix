@@ -26,6 +26,7 @@ import {
     Users2
 } from "lucide-react";
 import { StreamChat } from "./StreamChat";
+import { TipModal } from "./TipModal";
 
 type StreamPlayerProps = {
     token: string;
@@ -33,6 +34,7 @@ type StreamPlayerProps = {
     roomName: string;
     viewerName?: string;
     channelDisplayName?: string;
+    channelId?: string;
     chatSettings?: {
         isChatEnabled: boolean;
         isChatDelayed: boolean;
@@ -46,6 +48,9 @@ type ControlBarProps = {
     isMuted: boolean;
     isFullscreen: boolean;
     participantCount: number;
+    channelId?: string;
+    channelDisplayName?: string;
+    ownerMode?: boolean;
     onVolumeChange: (volume: number) => void;
     onMuteToggle: () => void;
     onFullscreenToggle: () => void;
@@ -56,6 +61,9 @@ function ControlBar({
     isMuted,
     isFullscreen,
     participantCount,
+    channelId,
+    channelDisplayName,
+    ownerMode = false,
     onVolumeChange,
     onMuteToggle,
     onFullscreenToggle,
@@ -101,8 +109,24 @@ function ControlBar({
                     <span>{participantCount} viewer{participantCount !== 1 ? 's' : ''}</span>
                 </div>
 
-                {/* Right side - Fullscreen */}
+                {/* Right side - Tip and Fullscreen */}
                 <div className="flex items-center gap-2">
+                    {/* Tip button - only show for non-owners */}
+                    {!ownerMode && channelId && channelDisplayName && (
+                        <TipModal
+                            channelId={channelId}
+                            channelName={channelDisplayName}
+                        >
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-white hover:bg-white/20 h-10 w-10 md:h-8 md:w-8 p-0 touch-manipulation"
+                            >
+                                <Zap className="h-4 w-4" />
+                            </Button>
+                        </TipModal>
+                    )}
+
                     <Button
                         size="sm"
                         variant="ghost"
@@ -121,7 +145,15 @@ function ControlBar({
     );
 }
 
-function StreamContent({ channelDisplayName }: { channelDisplayName?: string }) {
+function StreamContent({
+    channelDisplayName,
+    channelId,
+    ownerMode = false
+}: {
+    channelDisplayName?: string;
+    channelId?: string;
+    ownerMode?: boolean;
+}) {
     const connectionState = useConnectionState();
     const participants = useRemoteParticipants();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -373,6 +405,9 @@ function StreamContent({ channelDisplayName }: { channelDisplayName?: string }) 
                             isMuted={isMuted}
                             isFullscreen={isFullscreen}
                             participantCount={participants.length + 1}
+                            channelId={channelId}
+                            channelDisplayName={channelDisplayName}
+                            ownerMode={ownerMode}
                             onVolumeChange={handleVolumeChange}
                             onMuteToggle={handleMuteToggle}
                             onFullscreenToggle={handleFullscreenToggle}
@@ -397,6 +432,7 @@ export function StreamPlayer({
     token,
     serverUrl,
     channelDisplayName,
+    channelId,
     chatSettings,
     ownerMode = false,
 }: Omit<StreamPlayerProps, 'roomName' | 'viewerName'>) {
@@ -434,7 +470,11 @@ export function StreamPlayer({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Stream Player for Owner */}
                     <div className="lg:col-span-2">
-                        <StreamContent channelDisplayName={channelDisplayName} />
+                        <StreamContent
+                            channelDisplayName={channelDisplayName}
+                            channelId={channelId}
+                            ownerMode={ownerMode}
+                        />
                     </div>
 
                     {/* Chat for Owner */}
@@ -452,7 +492,11 @@ export function StreamPlayer({
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                     {/* Stream Player */}
                     <div className="lg:col-span-3">
-                        <StreamContent channelDisplayName={channelDisplayName} />
+                        <StreamContent
+                            channelDisplayName={channelDisplayName}
+                            channelId={channelId}
+                            ownerMode={ownerMode}
+                        />
                     </div>
 
                     {/* Chat */}
