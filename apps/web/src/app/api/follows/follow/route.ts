@@ -27,53 +27,57 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const { channelId } = body;
 
   try {
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const channel = await tx.channel.findUnique({
-        where: { id: channelId },
-        select: { id: true, userId: true, slug: true, displayName: true },
-      });
+    const result = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const channel = await tx.channel.findUnique({
+          where: { id: channelId },
+          select: { id: true, userId: true, slug: true, displayName: true },
+        });
 
-      if (!channel) throw new Error("Channel not found");
-      if (channel.userId === userId)
-        throw new Error("You cannot follow your own channel");
+        if (!channel) throw new Error("Channel not found");
+        if (channel.userId === userId)
+          throw new Error("You cannot follow your own channel");
 
-      // Check if user is banned from this channel
-      const ban = await tx.ban.findUnique({
-        where: {
-          channelId_userId: {
-            channelId: channelId,
-            userId: userId,
+        // Check if user is banned from this channel
+        const ban = await tx.ban.findUnique({
+          where: {
+            channelId_userId: {
+              channelId: channelId,
+              userId: userId,
+            },
           },
-        },
-        select: { expiresAt: true },
-      });
+          select: { expiresAt: true },
+        });
 
-      if (ban) {
-        const expired = ban.expiresAt && ban.expiresAt < new Date();
-        if (!expired) {
-          throw new Error("You cannot follow this channel because you are banned");
+        if (ban) {
+          const expired = ban.expiresAt && ban.expiresAt < new Date();
+          if (!expired) {
+            throw new Error(
+              "You cannot follow this channel because you are banned"
+            );
+          }
         }
+
+        await tx.follow.upsert({
+          where: { userId_channelId: { userId, channelId } },
+          update: {},
+          create: { userId, channelId },
+        });
+
+        return {
+          id: channel.id,
+          slug: channel.slug,
+          displayName: channel.displayName,
+          userId: channel.userId, // Include channel owner's user ID for cache invalidation
+        };
       }
-
-      await tx.follow.upsert({
-        where: { userId_channelId: { userId, channelId } },
-        update: {},
-        create: { userId, channelId },
-      });
-
-      return {
-        id: channel.id,
-        slug: channel.slug,
-        displayName: channel.displayName,
-        userId: channel.userId, // Include channel owner's user ID for cache invalidation
-      };
-    });
+    );
 
     // Clear all related caches using the comprehensive cache invalidation utility
     await clearFollowRelatedCaches({
       userId,
       targetChannelId: channelId,
-      targetUserId: result.userId // Channel owner's user ID
+      targetUserId: result.userId, // Channel owner's user ID
     });
 
     return successResponse("Followed successfully", 200, {

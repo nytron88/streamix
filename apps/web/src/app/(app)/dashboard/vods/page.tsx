@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useVods } from "@/hooks/useVods";
 import { VodList } from "@/components/dashboard/vods/VodList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,12 +13,29 @@ export default function VodsPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<"PUBLIC" | "SUB_ONLY" | "all">("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Debounce search input
+  useEffect(() => {
+    if (search !== debouncedSearch) {
+      setIsSearching(true);
+    }
+
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset to first page when search changes
+      setIsSearching(false);
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [search, debouncedSearch]);
 
   const { vods, pagination, isLoading, error, refresh } = useVods({
     page,
     limit: 12,
     status: statusFilter === "all" ? undefined : statusFilter,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const handlePageChange = (newPage: number) => {
@@ -28,6 +45,10 @@ export default function VodsPage() {
   const handleRefresh = () => {
     refresh();
   };
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+  }, []);
 
   // Calculate stats (these are per-page stats, not total stats)
   const totalVods = pagination?.total || 0;
@@ -42,7 +63,7 @@ export default function VodsPage() {
           <p className="text-muted-foreground mb-4">
             {error.message || "Failed to load your VODs"}
           </p>
-          <button 
+          <button
             onClick={handleRefresh}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 cursor-pointer"
           >
@@ -75,13 +96,18 @@ export default function VodsPage() {
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isSearching ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
                 <Input
                   placeholder="Search VODs by title..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={handleSearchChange}
                   className="pl-10"
                 />
+                {isSearching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  </div>
+                )}
               </div>
               <Select value={statusFilter} onValueChange={(value: "PUBLIC" | "SUB_ONLY" | "all") => setStatusFilter(value)}>
                 <SelectTrigger className="w-full sm:w-[200px]">

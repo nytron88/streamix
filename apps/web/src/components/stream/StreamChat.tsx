@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { 
-  useChat, 
-  useParticipants, 
+import {
+  useChat,
+  useParticipants,
   useLocalParticipant,
-  ChatMessage 
+  ChatMessage
 } from "@livekit/components-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,14 +66,14 @@ interface UserMetadata {
 export function StreamChat({ chatSettings }: StreamChatProps) {
   const [message, setMessage] = useState("");
   const [banModalOpen, setBanModalOpen] = useState(false);
-  const [banTargetUser, setBanTargetUser] = useState<{userId: string, username: string} | null>(null);
+  const [banTargetUser, setBanTargetUser] = useState<{ userId: string, username: string } | null>(null);
   const [banForm, setBanForm] = useState({
     reason: "",
     expiresAt: "",
     isPermanent: false,
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   const { chatMessages, send, isSending } = useChat();
   const participants = useParticipants();
   const localParticipant = useLocalParticipant();
@@ -106,7 +106,7 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
   // Get random color for username (Twitch-style)
   const getUsernameColor = (username: string): string => {
     const colors = [
-      "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", 
+      "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
       "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9"
     ];
     let hash = 0;
@@ -118,9 +118,9 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
 
   // Format timestamp
   const formatTime = (timestamp: number): string => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -198,7 +198,7 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
       }
 
       await axios.post("/api/bans", banData);
-      
+
       // Close modal and reset
       setBanModalOpen(false);
       setBanTargetUser(null);
@@ -207,7 +207,7 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
         expiresAt: "",
         isPermanent: false,
       });
-      
+
       toast.success(`${banTargetUser.username} has been banned`);
     } catch (error: unknown) {
       console.error("Failed to ban user:", error);
@@ -310,49 +310,49 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
                       <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity min-w-[3rem] text-right mt-0.5">
                         {formatTime(msg.timestamp)}
                       </span>
-                      
+
                       {/* Badges */}
                       <div className="flex items-center gap-1 mt-0.5">
                         {isOwner && (
                           <Crown className="h-3 w-3 text-yellow-500" />
                         )}
-                        
+
                         {isFollowing && !isOwner && (
                           <Heart className="h-3 w-3 text-red-500" />
                         )}
                       </div>
-                      
+
                       {/* Username */}
-                      <span 
+                      <span
                         className="font-semibold text-sm cursor-pointer hover:underline"
                         style={{ color: getUsernameColor(username) }}
                       >
                         {username}
                       </span>
-                      
+
                       {/* Colon */}
                       <span className="text-muted-foreground">:</span>
-                      
+
                       {/* Message */}
                       <span className="text-sm break-words leading-relaxed flex-1">
                         {msg.message}
                       </span>
-                      
+
                       {/* Moderation Menu */}
                       {canModerate && (
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-6 w-6 p-0 hover:bg-muted"
                               >
                                 <MoreVertical className="h-3 w-3" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleTimeoutUser(userId!, username)}
                                 className="text-orange-600 focus:text-orange-600"
                               >
@@ -360,7 +360,7 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
                                 Timeout (5m)
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => openBanModal(userId!, username)}
                                 className="text-red-600 focus:text-red-600"
                               >
@@ -445,10 +445,10 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
               <Switch
                 id="chat-permanent-ban"
                 checked={banForm.isPermanent}
-                onCheckedChange={(checked) => setBanForm(prev => ({ 
-                  ...prev, 
+                onCheckedChange={(checked) => setBanForm(prev => ({
+                  ...prev,
                   isPermanent: checked,
-                  expiresAt: checked ? "" : prev.expiresAt 
+                  expiresAt: checked ? "" : prev.expiresAt
                 }))}
               />
               <Label htmlFor="chat-permanent-ban">Permanent ban</Label>
@@ -471,13 +471,13 @@ export function StreamChat({ chatSettings }: StreamChatProps) {
             )}
           </div>
           <div className="flex justify-end space-x-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setBanModalOpen(false)}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               variant="destructive"
               onClick={handleBanUser}
             >

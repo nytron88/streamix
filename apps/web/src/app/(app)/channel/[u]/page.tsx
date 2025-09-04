@@ -47,6 +47,7 @@ import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { useBanUser } from "@/hooks/useBanUser";
 import { useUser as useClerkUser } from "@clerk/nextjs";
 import { TipModal } from "@/components/stream/TipModal";
+import { ChannelVods } from "@/components/channel/ChannelVods";
 
 interface ChannelStats {
     followers: number;
@@ -534,54 +535,11 @@ export default function ChannelPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Content */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Recent Streams / VODs */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Video className="h-5 w-5" />
-                                Recent Streams
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-8">
-                                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                <h3 className="text-lg font-medium mb-2">No Recent Streams</h3>
-                                <p className="text-muted-foreground">
-                                    {isOwner
-                                        ? "Start streaming to see your content here!"
-                                        : "This channel hasn&apos;t streamed recently."
-                                    }
-                                </p>
-                                {isOwner && (
-                                    <Link href="/dashboard/keys" className="mt-4 inline-block">
-                                        <Button className="cursor-pointer">
-                                            <Play className="h-4 w-4 mr-2" />
-                                            Start Streaming
-                                        </Button>
-                                    </Link>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Highlights / Clips */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Star className="h-5 w-5" />
-                                Highlights
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-8">
-                                <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                <h3 className="text-lg font-medium mb-2">No Highlights Yet</h3>
-                                <p className="text-muted-foreground">
-                                    Highlights and clips will appear here when available.
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {/* VODs Section - moved here from below */}
+                    <ChannelVods
+                        channelSlug={slug}
+                        isSubscribed={isSubscribed}
+                    />
                 </div>
 
                 {/* Sidebar */}
@@ -625,23 +583,6 @@ export default function ChannelPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Recent Followers */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Heart className="h-5 w-5" />
-                                Recent Followers
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-4">
-                                <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                                <p className="text-sm text-muted-foreground">
-                                    Recent followers will appear here.
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
 
                     {/* Quick Actions */}
                     {!isOwner && (
@@ -765,6 +706,7 @@ export default function ChannelPage() {
                     )}
                 </div>
             </div>
+
         </div>
     );
 }

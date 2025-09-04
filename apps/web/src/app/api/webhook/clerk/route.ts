@@ -23,9 +23,7 @@ type ClerkUser = {
 
 type HandlerResult = null | NextResponse;
 
-async function handleUserCreated(
-  data: ClerkUser
-): Promise<HandlerResult> {
+async function handleUserCreated(data: ClerkUser): Promise<HandlerResult> {
   const email =
     data.email_addresses?.find((e) => e.id === data.primary_email_address_id)
       ?.email_address ?? null;
@@ -89,9 +87,7 @@ async function handleUserCreated(
   return null;
 }
 
-async function handleUserUpdated(
-  data: ClerkUser
-): Promise<HandlerResult> {
+async function handleUserUpdated(data: ClerkUser): Promise<HandlerResult> {
   const email =
     data.email_addresses?.find((e) => e.id === data.primary_email_address_id)
       ?.email_address ?? null;
@@ -130,9 +126,9 @@ async function handleUserUpdated(
   return null;
 }
 
-async function handleUserDeleted(
-  data: { id?: string }
-): Promise<HandlerResult> {
+async function handleUserDeleted(data: {
+  id?: string;
+}): Promise<HandlerResult> {
   if (!data.id) return null;
 
   // 1) In a txn: read what we need + delete rows

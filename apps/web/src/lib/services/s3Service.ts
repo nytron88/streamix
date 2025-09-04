@@ -90,8 +90,15 @@ export function getCloudFrontUrl(key: string): string {
   return `https://${CLOUDFRONT_DOMAIN}/${key}`;
 }
 
-export function getCloudFrontSignedUrl(key: string, expiresInSeconds: number = 3600): string {
-  if (!CLOUDFRONT_DOMAIN || !CLOUDFRONT_PRIVATE_KEY || !CLOUDFRONT_KEY_PAIR_ID) {
+export function getCloudFrontSignedUrl(
+  key: string,
+  expiresInSeconds: number = 3600
+): string {
+  if (
+    !CLOUDFRONT_DOMAIN ||
+    !CLOUDFRONT_PRIVATE_KEY ||
+    !CLOUDFRONT_KEY_PAIR_ID
+  ) {
     // Fallback to unsigned URL if CloudFront signing not configured
     return getCloudFrontUrl(key);
   }
@@ -119,39 +126,45 @@ export async function deleteObjectIfExists(key?: string | null): Promise<void> {
   }
 }
 
-export async function deleteFolderIfExists(folderPath?: string | null): Promise<void> {
+export async function deleteFolderIfExists(
+  folderPath?: string | null
+): Promise<void> {
   if (!folderPath) return;
-  
+
   // Ensure folder path ends with / for proper prefix matching
-  const prefix = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
-  
+  const prefix = folderPath.endsWith("/") ? folderPath : `${folderPath}/`;
+
   try {
     // List all objects in the folder
     const listCommand = new ListObjectsV2Command({
       Bucket: BUCKET,
       Prefix: prefix,
     });
-    
+
     const listResponse = await s3.send(listCommand);
-    
+
     if (!listResponse.Contents || listResponse.Contents.length === 0) {
       logger.info(`No objects found in folder: ${prefix}`);
       return;
     }
-    
+
     // Delete all objects in the folder
     const deleteCommand = new DeleteObjectsCommand({
       Bucket: BUCKET,
       Delete: {
-        Objects: listResponse.Contents.map(obj => ({ Key: obj.Key! })),
+        Objects: listResponse.Contents.map((obj) => ({ Key: obj.Key! })),
         Quiet: false,
       },
     });
-    
+
     const deleteResponse = await s3.send(deleteCommand);
-    
-    logger.info(`Deleted ${deleteResponse.Deleted?.length || 0} objects from folder: ${prefix}`);
-    
+
+    logger.info(
+      `Deleted ${
+        deleteResponse.Deleted?.length || 0
+      } objects from folder: ${prefix}`
+    );
+
     if (deleteResponse.Errors && deleteResponse.Errors.length > 0) {
       logger.error(`Some objects failed to delete from folder: ${prefix}`, {
         errors: deleteResponse.Errors,

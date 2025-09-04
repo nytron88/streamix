@@ -31,53 +31,55 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const { banId } = body;
 
   try {
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Get the ban and verify ownership
-      const ban = await tx.ban.findUnique({
-        where: { id: banId },
-        include: {
-          channel: {
-            select: {
-              id: true,
-              userId: true,
+    const result = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // Get the ban and verify ownership
+        const ban = await tx.ban.findUnique({
+          where: { id: banId },
+          include: {
+            channel: {
+              select: {
+                id: true,
+                userId: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-          user: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      });
+        });
 
-      if (!ban) {
-        throw new Error("Ban not found");
+        if (!ban) {
+          throw new Error("Ban not found");
+        }
+
+        // Verify the authenticated user owns the channel
+        if (ban.channel.userId !== channelOwnerId) {
+          throw new Error("You can only remove bans from your own channel");
+        }
+
+        // Delete the ban
+        await tx.ban.delete({
+          where: { id: banId },
+        });
+
+        return {
+          id: ban.id,
+          userId: ban.userId,
+          userName: ban.user.name,
+          channelId: ban.channel.id,
+        };
       }
-
-      // Verify the authenticated user owns the channel
-      if (ban.channel.userId !== channelOwnerId) {
-        throw new Error("You can only remove bans from your own channel");
-      }
-
-      // Delete the ban
-      await tx.ban.delete({
-        where: { id: banId },
-      });
-
-      return {
-        id: ban.id,
-        userId: ban.userId,
-        userName: ban.user.name,
-        channelId: ban.channel.id,
-      };
-    });
+    );
 
     // Clear all related caches using the comprehensive cache invalidation utility
     await clearBanRelatedCaches({
       userId: channelOwnerId,
       channelId: result.channelId,
-      targetUserId: result.userId
+      targetUserId: result.userId,
     });
 
     return successResponse("Ban removed successfully", 200, {

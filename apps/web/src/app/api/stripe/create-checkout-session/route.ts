@@ -81,7 +81,10 @@ export const POST = withLoggerAndErrorHandler(async (request: NextRequest) => {
 
   // Prevent banned users from subscribing
   if (channel.bans.length > 0) {
-    return errorResponse("You cannot subscribe to this channel because you are banned", 403);
+    return errorResponse(
+      "You cannot subscribe to this channel because you are banned",
+      403
+    );
   }
 
   const origin =

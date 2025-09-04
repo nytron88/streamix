@@ -67,8 +67,8 @@ export function VodCard({ vod, onUpdate }: VodCardProps) {
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0 pr-2">
-              <CardTitle 
-                className="text-lg font-semibold leading-tight overflow-hidden" 
+              <CardTitle
+                className="text-lg font-semibold leading-tight overflow-hidden"
                 style={{
                   display: '-webkit-box',
                   WebkitLineClamp: 2,

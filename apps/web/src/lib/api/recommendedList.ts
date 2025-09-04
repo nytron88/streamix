@@ -53,13 +53,15 @@ export async function getRecommendedList(limit = 12) {
             ],
           },
           // Bans where this user has banned others from their channel
-          userChannel ? {
-            channelId: userChannel.id,
-            OR: [
-              { expiresAt: null }, // Permanent ban
-              { expiresAt: { gt: new Date() } }, // Non-expired ban
-            ],
-          } : {},
+          userChannel
+            ? {
+                channelId: userChannel.id,
+                OR: [
+                  { expiresAt: null }, // Permanent ban
+                  { expiresAt: { gt: new Date() } }, // Non-expired ban
+                ],
+              }
+            : {},
         ].filter(Boolean),
       },
       select: {
@@ -114,7 +116,7 @@ export async function getRecommendedList(limit = 12) {
     // 4) Followed — live first (exclude banned)
     const followedLive = await prisma.channel.findMany({
       where: {
-        id: { 
+        id: {
           in: followedIds.length ? followedIds : ["_none_"],
           notIn: allBlockedChannelIds.length ? allBlockedChannelIds : [],
         },
@@ -131,7 +133,7 @@ export async function getRecommendedList(limit = 12) {
       needAfterFollowedLive > 0
         ? await prisma.channel.findMany({
             where: {
-              id: { 
+              id: {
                 in: followedIds.length ? followedIds : ["_none_"],
                 notIn: allBlockedChannelIds.length ? allBlockedChannelIds : [],
               },
@@ -159,7 +161,13 @@ export async function getRecommendedList(limit = 12) {
       needAfterFollowed > 0
         ? await prisma.channel.findMany({
             where: {
-              id: { notIn: [...collectedIds, ...followedIds, ...allBlockedChannelIds] },
+              id: {
+                notIn: [
+                  ...collectedIds,
+                  ...followedIds,
+                  ...allBlockedChannelIds,
+                ],
+              },
               userId: { not: userId },
               stream: { is: { isLive: true } },
             },

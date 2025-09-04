@@ -120,7 +120,7 @@ export function VideoPlayer({ vodId, title, open, onOpenChange }: VideoPlayerPro
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold truncate">{title}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {/* Video Player */}
           <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
