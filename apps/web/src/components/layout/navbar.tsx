@@ -2,11 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/layout/theme-toggle";
-import { Search, Menu, X } from "lucide-react";
+import { Search, Menu, X, Loader2 } from "lucide-react";
+import axios from "axios";
+import { APIResponse } from "@/types/apiResponse";
+import { SearchResponse } from "@/types/search";
 
 interface NavbarProps {
     onMobileMenuToggle: () => void;
@@ -19,6 +24,85 @@ export function Navbar({
     mobileSearchOpen,
     onMobileSearchToggle
 }: NavbarProps) {
+    const router = useRouter();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
+    const [showResults, setShowResults] = useState(false);
+
+    // Debounce search query
+    useEffect(() => {
+        if (searchQuery !== debouncedQuery) {
+            setIsSearching(true);
+        }
+
+        const timer = setTimeout(() => {
+            setDebouncedQuery(searchQuery);
+            setIsSearching(false);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, debouncedQuery]);
+
+    // Search function
+    const performSearch = useCallback(async (query: string) => {
+        if (!query.trim()) {
+            setSearchResults(null);
+            setShowResults(false);
+            return;
+        }
+
+        try {
+            const response = await axios.get<APIResponse<SearchResponse>>(
+                `/api/search?q=${encodeURIComponent(query.trim())}&limit=5`
+            );
+
+            if (response.data.success && response.data.payload) {
+                setSearchResults(response.data.payload);
+                setShowResults(true);
+            } else {
+                setSearchResults(null);
+                setShowResults(false);
+            }
+        } catch (error) {
+            setSearchResults(null);
+            setShowResults(false);
+        }
+    }, []);
+
+    // Trigger search when debounced query changes
+    useEffect(() => {
+        performSearch(debouncedQuery);
+    }, [debouncedQuery, performSearch]);
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value);
+    };
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            router.push(`/browse?q=${encodeURIComponent(searchQuery.trim())}`);
+            setShowResults(false);
+            setSearchQuery("");
+        }
+    };
+
+    const handleResultClick = (result: any) => {
+        if (result.type === "user") {
+            router.push(`/channel/${result.slug}`);
+        } else if (result.type === "vod") {
+            router.push(`/vod/${result.id}`);
+        }
+        setShowResults(false);
+        setSearchQuery("");
+    };
+
+    const handleInputBlur = () => {
+        // Delay hiding results to allow clicking on them
+        setTimeout(() => setShowResults(false), 200);
+    };
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
             <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-4">
@@ -51,11 +135,65 @@ export function Navbar({
                 {/* Search Bar - Hidden on small screens */}
                 <div className="hidden md:flex flex-1 max-w-md mx-8">
                     <div className="relative w-full">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                        <Input
-                            placeholder="Search streams, creators..."
-                            className="pl-10"
-                        />
+                        <form onSubmit={handleSearchSubmit} className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                            <Input
+                                placeholder="Search streams, creators..."
+                                className="pl-10"
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                onBlur={handleInputBlur}
+                                onFocus={() => searchQuery && setShowResults(true)}
+                            />
+                            {isSearching && (
+                                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 animate-spin" />
+                            )}
+                        </form>
+                        
+                        {/* Search Results Dropdown */}
+                        {showResults && searchResults && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                                {searchResults.results.length > 0 ? (
+                                    <div className="py-2">
+                                        {searchResults.results.map((result) => (
+                                            <button
+                                                key={result.id}
+                                                onClick={() => handleResultClick(result)}
+                                                className="w-full px-4 py-2 text-left hover:bg-muted flex items-center gap-3"
+                                            >
+                                                {result.avatarUrl && (
+                                                    <img
+                                                        src={result.avatarUrl}
+                                                        alt={result.title}
+                                                        className="w-8 h-8 rounded-full object-cover"
+                                                    />
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium truncate">{result.title}</div>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {result.type === "user" ? "Channel" : "VOD"}
+                                                        {result.followerCount !== undefined && ` • ${result.followerCount} followers`}
+                                                        {result.isLive && " • Live"}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                        <div className="border-t px-4 py-2">
+                                            <button
+                                                onClick={handleSearchSubmit}
+                                                className="text-sm text-primary hover:underline"
+                                            >
+                                                View all results for "{searchQuery}"
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="px-4 py-8 text-center text-muted-foreground">
+                                        No results found
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -94,12 +232,66 @@ export function Navbar({
             {mobileSearchOpen && (
                 <div className="md:hidden border-t px-4 py-3">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                        <Input
-                            placeholder="Search streams, creators..."
-                            className="pl-10"
-                            autoFocus
-                        />
+                        <form onSubmit={handleSearchSubmit} className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                            <Input
+                                placeholder="Search streams, creators..."
+                                className="pl-10"
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                onBlur={handleInputBlur}
+                                onFocus={() => searchQuery && setShowResults(true)}
+                                autoFocus
+                            />
+                            {isSearching && (
+                                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 animate-spin" />
+                            )}
+                        </form>
+                        
+                        {/* Mobile Search Results */}
+                        {showResults && searchResults && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                                {searchResults.results.length > 0 ? (
+                                    <div className="py-2">
+                                        {searchResults.results.map((result) => (
+                                            <button
+                                                key={result.id}
+                                                onClick={() => handleResultClick(result)}
+                                                className="w-full px-4 py-2 text-left hover:bg-muted flex items-center gap-3"
+                                            >
+                                                {result.avatarUrl && (
+                                                    <img
+                                                        src={result.avatarUrl}
+                                                        alt={result.title}
+                                                        className="w-8 h-8 rounded-full object-cover"
+                                                    />
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium truncate">{result.title}</div>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {result.type === "user" ? "Channel" : "VOD"}
+                                                        {result.followerCount !== undefined && ` • ${result.followerCount} followers`}
+                                                        {result.isLive && " • Live"}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                        <div className="border-t px-4 py-2">
+                                            <button
+                                                onClick={handleSearchSubmit}
+                                                className="text-sm text-primary hover:underline"
+                                            >
+                                                View all results for "{searchQuery}"
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="px-4 py-8 text-center text-muted-foreground">
+                                        No results found
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

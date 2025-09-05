@@ -9,13 +9,13 @@ import logger from "@/lib/utils/logger";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getSignedUrl as createCloudFrontSignedUrl } from "@aws-sdk/cloudfront-signer";
 
-const REGION = process.env.AWS_REGION!;
-const BUCKET = process.env.S3_BUCKET!;
-const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN!;
-const CLOUDFRONT_PRIVATE_KEY = process.env.CLOUDFRONT_PRIVATE_KEY!;
-const CLOUDFRONT_KEY_PAIR_ID = process.env.CLOUDFRONT_KEY_PAIR_ID!;
+const REGION = process.env.AWS_REGION;
+const BUCKET = process.env.S3_BUCKET;
+const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN;
+const CLOUDFRONT_PRIVATE_KEY = process.env.CLOUDFRONT_PRIVATE_KEY;
+const CLOUDFRONT_KEY_PAIR_ID = process.env.CLOUDFRONT_KEY_PAIR_ID;
 
-const s3 = new S3Client({ region: REGION });
+const s3 = REGION ? new S3Client({ region: REGION }) : null;
 
 function extFromMime(mime: string): string {
   switch (mime) {
@@ -63,6 +63,10 @@ export async function getUploadSignedUrl(args: {
   requiredHeaders: Record<string, string>;
   expiresIn: number;
 }> {
+  if (!s3 || !BUCKET) {
+    throw new Error("S3 not configured");
+  }
+
   const expiresIn = args.expiresInSeconds ?? 300;
 
   const command = new PutObjectCommand({
@@ -85,7 +89,11 @@ export async function getUploadSignedUrl(args: {
 export function getCloudFrontUrl(key: string): string {
   if (!CLOUDFRONT_DOMAIN) {
     // Fallback to S3 URL if CloudFront domain not configured
-    return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+    if (BUCKET && REGION) {
+      return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+    }
+    // Ultimate fallback to placeholder
+    return `https://via.placeholder.com/150x150/cccccc/666666?text=No+Image`;
   }
   return `https://${CLOUDFRONT_DOMAIN}/${key}`;
 }
@@ -118,7 +126,7 @@ export function getCloudFrontSignedUrl(
 // Signed URLs provide security through time-limited access instead
 
 export async function deleteObjectIfExists(key?: string | null): Promise<void> {
-  if (!key) return;
+  if (!key || !s3 || !BUCKET) return;
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
   } catch (error) {
@@ -129,7 +137,7 @@ export async function deleteObjectIfExists(key?: string | null): Promise<void> {
 export async function deleteFolderIfExists(
   folderPath?: string | null
 ): Promise<void> {
-  if (!folderPath) return;
+  if (!folderPath || !s3 || !BUCKET) return;
 
   // Ensure folder path ends with / for proper prefix matching
   const prefix = folderPath.endsWith("/") ? folderPath : `${folderPath}/`;
