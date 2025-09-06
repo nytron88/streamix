@@ -8,6 +8,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { mapStripeSubscriptionStatus } from "@/types/stripe";
 import { unixToDate } from "@/utils/helpers";
+import { TipNotificationService, TipNotificationData } from "@/lib/services/tipNotificationService";
+import { SubscriptionNotificationService, SubscriptionNotificationData } from "@/lib/services/subscriptionNotificationService";
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
@@ -41,7 +43,7 @@ async function handleTipCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   // Record the tip in DB
-  await prisma.tip.create({
+  const tip = await prisma.tip.create({
     data: {
       userId: viewerId ?? null,
       channelId,
@@ -52,11 +54,27 @@ async function handleTipCheckoutCompleted(session: Stripe.Checkout.Session) {
     },
   });
 
-  logger.info("Tip recorded", {
+  // Store tip notification in Redis
+  const tipNotification: TipNotificationData = {
+    id: tip.id,
+    userId: viewerId ?? null,
+    channelId,
+    amountCents,
+    currency: session.currency ?? "usd",
+    stripePaymentIntent: session.payment_intent as string,
+    status: "SUCCEEDED",
+    createdAt: tip.createdAt.toISOString(),
+    // Additional metadata will be populated by the worker
+  };
+
+  await TipNotificationService.storeNotification(tipNotification);
+
+  logger.info("Tip recorded and notification stored", {
     channelId,
     viewerId,
     amountCents,
     sessionId: session.id,
+    tipId: tip.id,
     eventType: "checkout.session.completed",
   });
 
@@ -107,7 +125,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     return null;
   }
 
-  await prisma.subscription.upsert({
+  const sub = await prisma.subscription.upsert({
     where: { userId_channelId: { userId, channelId } },
     update: {
       stripeSubId: subscription.id,
@@ -127,12 +145,28 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     },
   });
 
+  // Store subscription notification in Redis
+  const subscriptionNotification: SubscriptionNotificationData = {
+    id: sub.id,
+    userId,
+    channelId,
+    stripeSubId: subscription.id,
+    status: mapStripeSubscriptionStatus(subscription),
+    currentPeriodEnd: sub.currentPeriodEnd?.toISOString() ?? null,
+    createdAt: sub.createdAt.toISOString(),
+    action: 'CREATED',
+    // Additional metadata will be populated by the worker
+  };
+
+  await SubscriptionNotificationService.storeNotification(subscriptionNotification);
+
   await redis.del(`subscriptions:${userId}`);
 
-  logger.info("Subscription created/upserted", {
+  logger.info("Subscription created/upserted and notification stored", {
     stripeSubscriptionId: subscription.id,
     userId,
     channelId,
+    subscriptionId: sub.id,
   });
 
   return null;
@@ -158,32 +192,75 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   const record = await prisma.subscription.findUnique({
     where: { stripeSubId: subscription.id },
-    select: { userId: true },
+    select: { id: true, userId: true, channelId: true, currentPeriodEnd: true, createdAt: true },
   });
-  if (record) await redis.del(`subscriptions:${record.userId}`);
 
-  logger.info("Subscription updated", {
+  if (record) {
+    // Store subscription update notification in Redis
+    const subscriptionNotification: SubscriptionNotificationData = {
+      id: record.id,
+      userId: record.userId,
+      channelId: record.channelId,
+      stripeSubId: subscription.id,
+      status: mapStripeSubscriptionStatus(subscription),
+      currentPeriodEnd: record.currentPeriodEnd?.toISOString() ?? null,
+      createdAt: record.createdAt.toISOString(),
+      action: 'UPDATED',
+      // Additional metadata will be populated by the worker
+    };
+
+    await SubscriptionNotificationService.storeNotification(subscriptionNotification);
+    await redis.del(`subscriptions:${record.userId}`);
+  }
+
+  logger.info("Subscription updated and notification stored", {
     stripeSubscriptionId: subscription.id,
     status: subscription.status,
+    subscriptionId: record?.id,
   });
 
   return null;
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  await prisma.subscription.updateMany({
+  const updated = await prisma.subscription.updateMany({
     where: { stripeSubId: subscription.id },
     data: { status: "CANCELED", currentPeriodEnd: null },
   });
 
+  if (updated.count === 0) {
+    logger.warn("Subscription not found in database for delete event", {
+      stripeSubscriptionId: subscription.id,
+    });
+    return null;
+  }
+
   const record = await prisma.subscription.findUnique({
     where: { stripeSubId: subscription.id },
-    select: { userId: true },
+    select: { id: true, userId: true, channelId: true, createdAt: true },
   });
-  if (record) await redis.del(`subscriptions:${record.userId}`);
 
-  logger.info("Subscription deleted", {
+  if (record) {
+    // Store subscription delete notification in Redis
+    const subscriptionNotification: SubscriptionNotificationData = {
+      id: record.id,
+      userId: record.userId,
+      channelId: record.channelId,
+      stripeSubId: subscription.id,
+      status: "CANCELED",
+      currentPeriodEnd: null,
+      createdAt: record.createdAt.toISOString(),
+      action: 'DELETED',
+      // Additional metadata will be populated by the worker
+    };
+
+    await SubscriptionNotificationService.storeNotification(subscriptionNotification);
+    await redis.del(`subscriptions:${record.userId}`);
+  }
+
+  logger.info("Subscription deleted and notification stored", {
     stripeSubscriptionId: subscription.id,
+    subscriptionId: record?.id,
   });
 
   return null;

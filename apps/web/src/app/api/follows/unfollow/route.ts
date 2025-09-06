@@ -7,6 +7,7 @@ import { clearFollowRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import { ChannelIdSchema } from "@/schemas/channelIdSchema";
 import { ChannelId } from "@/types/channel";
 import { Prisma } from "@prisma/client";
+import { FollowNotificationService, FollowNotificationData } from "@/lib/services/followNotificationService";
 
 export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const auth = await requireAuth();
@@ -36,12 +37,19 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
 
       // Note: We allow unfollowing even if banned, as this helps clean up relationships
 
+      // Get the follow record before deleting it
+      const existingFollow = await tx.follow.findUnique({
+        where: { userId_channelId: { userId, channelId } },
+        select: { id: true },
+      });
+
       const { count } = await tx.follow.deleteMany({
         where: { userId, channelId },
       });
 
       return {
         unfollowed: count > 0,
+        followId: existingFollow?.id,
         channel: {
           id: channel.id,
           slug: channel.slug,
@@ -50,6 +58,20 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
         },
       };
     });
+
+    // Store unfollow notification in Redis (only if there was actually a follow to unfollow)
+    if (result.unfollowed && result.followId) {
+      const unfollowNotification: FollowNotificationData = {
+        id: result.followId,
+        followerId: userId,
+        channelId,
+        action: 'UNFOLLOWED',
+        createdAt: new Date().toISOString(),
+        // Additional metadata will be populated by the worker
+      };
+
+      await FollowNotificationService.storeNotification(unfollowNotification);
+    }
 
     // Clear all related caches using the comprehensive cache invalidation utility
     await clearFollowRelatedCaches({

@@ -7,6 +7,7 @@ import { clearFollowRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import { ChannelIdSchema } from "@/schemas/channelIdSchema";
 import { ChannelId } from "@/types/channel";
 import { Prisma } from "@prisma/client";
+import { FollowNotificationService, FollowNotificationData } from "@/lib/services/followNotificationService";
 
 export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const auth = await requireAuth();
@@ -58,7 +59,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
           }
         }
 
-        await tx.follow.upsert({
+        const follow = await tx.follow.upsert({
           where: { userId_channelId: { userId, channelId } },
           update: {},
           create: { userId, channelId },
@@ -69,9 +70,22 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
           slug: channel.slug,
           displayName: channel.displayName,
           userId: channel.userId, // Include channel owner's user ID for cache invalidation
+          followId: follow.id,
         };
       }
     );
+
+    // Store follow notification in Redis
+    const followNotification: FollowNotificationData = {
+      id: result.followId,
+      followerId: userId,
+      channelId,
+      action: 'FOLLOWED',
+      createdAt: new Date().toISOString(),
+      // Additional metadata will be populated by the worker
+    };
+
+    await FollowNotificationService.storeNotification(followNotification);
 
     // Clear all related caches using the comprehensive cache invalidation utility
     await clearFollowRelatedCaches({
