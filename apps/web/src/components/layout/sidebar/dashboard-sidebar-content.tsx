@@ -19,7 +19,7 @@ const dashboardSidebarItems = [
     { icon: Key, label: "Keys", href: "/dashboard/keys" },
     { icon: Video, label: "My Stream", href: "/dashboard/stream" },
     { icon: MessageCircle, label: "Chat", href: "/dashboard/chat" },
-    { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
+    { icon: Bell, label: "Notifications", href: "/notifications" },
     { icon: DollarSign, label: "Earnings", href: "/dashboard/earnings" },
     { icon: Video, label: "Manage Vods", href: "/dashboard/vods" },
     { icon: Shield, label: "Manage Bans", href: "/dashboard/bans" },
