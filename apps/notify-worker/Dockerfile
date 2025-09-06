@@ -6,7 +6,7 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json* ./
+COPY apps/notify-worker/package.json apps/notify-worker/package-lock.json* ./
 RUN npm ci --only=production
 
 # Rebuild the source code only when needed
@@ -15,10 +15,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy the web app's Prisma schema
-COPY ../web/prisma ./prisma
+COPY apps/web/prisma ./prisma
 
 # Copy notify-worker source
-COPY . .
+COPY apps/notify-worker .
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -44,6 +44,6 @@ USER worker
 
 EXPOSE 3000
 
-ENV PORT 3000
+ENV PORT=3000
 
 CMD ["node", "dist/index.js"]
