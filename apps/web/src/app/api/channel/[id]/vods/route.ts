@@ -3,6 +3,7 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
 import { getCloudFrontUrl } from "@/lib/services/s3Service";
+import { ViewTrackingService } from "@/lib/services/viewTrackingService";
 import { z } from "zod";
 
 const QuerySchema = z.object({
@@ -72,13 +73,18 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest, { params }
     prisma.vod.count({ where }),
   ]);
 
-  // Add CloudFront URLs
+  // Get view counts from Redis for all VODs
+  const vodIds = vods.map(vod => vod.id);
+  const viewCounts = await ViewTrackingService.getViewCounts(vodIds);
+
+  // Add CloudFront URLs and view counts
   const vodsWithUrls = vods.map((vod) => ({
     ...vod,
     s3Url: vod.s3Key ? getCloudFrontUrl(vod.s3Key) : null,
     thumbnailUrl: vod.thumbnailS3Key
       ? getCloudFrontUrl(vod.thumbnailS3Key)
       : null,
+    viewCount: viewCounts[vod.id] || 0,
   }));
 
   return successResponse("Channel VODs retrieved successfully", 200, {

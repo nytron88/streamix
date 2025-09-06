@@ -30,6 +30,8 @@ export function Navbar({
     const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
     const [showResults, setShowResults] = useState(false);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     // Debounce search query
     useEffect(() => {
@@ -71,10 +73,39 @@ export function Navbar({
         }
     }, []);
 
+    // Get search suggestions
+    const getSuggestions = useCallback(async (query: string) => {
+        if (query.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        try {
+            const response = await axios.get<APIResponse<{ suggestions: string[] }>>(
+                `/api/search/suggestions?q=${encodeURIComponent(query)}`
+            );
+            
+            if (response.data.success && response.data.payload) {
+                setSuggestions(response.data.payload.suggestions);
+            }
+        } catch (error) {
+            // Silently handle suggestion errors
+        }
+    }, []);
+
     // Trigger search when debounced query changes
     useEffect(() => {
         performSearch(debouncedQuery);
     }, [debouncedQuery, performSearch]);
+
+    // Get suggestions when search query changes
+    useEffect(() => {
+        if (searchQuery.trim()) {
+            getSuggestions(searchQuery);
+        } else {
+            setSuggestions([]);
+        }
+    }, [searchQuery, getSuggestions]);
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
@@ -96,12 +127,23 @@ export function Navbar({
             router.push(`/vod/${result.id}`);
         }
         setShowResults(false);
+        setShowSuggestions(false);
         setSearchQuery("");
     };
 
     const handleInputBlur = () => {
         // Delay hiding results to allow clicking on them
-        setTimeout(() => setShowResults(false), 200);
+        setTimeout(() => {
+            setShowResults(false);
+            setShowSuggestions(false);
+        }, 200);
+    };
+
+    const formatNumber = (num: number | undefined) => {
+        if (!num) return "0";
+        if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+        if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+        return num.toString();
     };
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -143,23 +185,48 @@ export function Navbar({
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 onBlur={handleInputBlur}
-                                onFocus={() => searchQuery && setShowResults(true)}
+                                onFocus={() => {
+                                    if (searchQuery) setShowResults(true);
+                                    if (suggestions.length > 0) setShowSuggestions(true);
+                                }}
                             />
                             {isSearching && (
                                 <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 animate-spin" />
                             )}
                         </form>
                         
+                        {/* Search Suggestions Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && !showResults && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-md border border-primary/20 rounded-xl shadow-2xl z-50">
+                                <div className="py-2">
+                                    {suggestions.map((suggestion, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => {
+                                                setSearchQuery(suggestion);
+                                                setShowSuggestions(false);
+                                                router.push(`/browse?q=${encodeURIComponent(suggestion)}`);
+                                            }}
+                                            className="w-full px-4 py-3 text-left hover:bg-primary/5 transition-all duration-200 flex items-center gap-3 first:rounded-t-xl last:rounded-b-xl"
+                                        >
+                                            <Search className="w-4 h-4 text-primary/60" />
+                                            <span className="text-sm font-medium">{suggestion}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
                         {/* Search Results Dropdown */}
                         {showResults && searchResults && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-md border border-primary/20 rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto">
                                 {searchResults.results.length > 0 ? (
                                     <div className="py-2">
                                         {searchResults.results.map((result) => (
                                             <button
                                                 key={result.id}
                                                 onClick={() => handleResultClick(result)}
-                                                className="w-full px-4 py-2 text-left hover:bg-muted flex items-center gap-3"
+                                                className="w-full px-4 py-3 text-left hover:bg-primary/5 transition-all duration-200 flex items-center gap-3 first:rounded-t-xl last:rounded-b-xl"
                                             >
                                                 {result.avatarUrl && (
                                                     <img
@@ -172,7 +239,8 @@ export function Navbar({
                                                     <div className="font-medium truncate">{result.title}</div>
                                                     <div className="text-sm text-muted-foreground">
                                                         {result.type === "user" ? "Channel" : "VOD"}
-                                                        {result.followerCount !== undefined && ` • ${result.followerCount} followers`}
+                                                        {result.type === "user" && ` • ${formatNumber(result.followerCount || 0)} followers`}
+                                                        {result.type === "vod" && result.viewCount !== undefined && ` • ${formatNumber(result.viewCount)} views`}
                                                         {result.isLive && " • Live"}
                                                     </div>
                                                 </div>
@@ -236,17 +304,55 @@ export function Navbar({
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                             <Input
                                 placeholder="Search streams, creators..."
-                                className="pl-10"
+                                className="pl-10 pr-10 h-10"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 onBlur={handleInputBlur}
-                                onFocus={() => searchQuery && setShowResults(true)}
+                                onFocus={() => {
+                                    if (searchQuery) setShowResults(true);
+                                    if (suggestions.length > 0) setShowSuggestions(true);
+                                }}
                                 autoFocus
                             />
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearchQuery("");
+                                        setShowResults(false);
+                                        setShowSuggestions(false);
+                                    }}
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
                             {isSearching && (
-                                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 animate-spin" />
+                                <Loader2 className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 animate-spin" />
                             )}
                         </form>
+                        
+                        {/* Mobile Search Suggestions */}
+                        {showSuggestions && suggestions.length > 0 && !showResults && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50">
+                                <div className="py-2">
+                                    {suggestions.map((suggestion, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => {
+                                                setSearchQuery(suggestion);
+                                                setShowSuggestions(false);
+                                                router.push(`/browse?q=${encodeURIComponent(suggestion)}`);
+                                            }}
+                                            className="w-full px-4 py-2 text-left hover:bg-muted flex items-center gap-3"
+                                        >
+                                            <Search className="w-4 h-4 text-muted-foreground" />
+                                            <span className="text-sm">{suggestion}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         
                         {/* Mobile Search Results */}
                         {showResults && searchResults && (
@@ -257,7 +363,7 @@ export function Navbar({
                                             <button
                                                 key={result.id}
                                                 onClick={() => handleResultClick(result)}
-                                                className="w-full px-4 py-2 text-left hover:bg-muted flex items-center gap-3"
+                                                className="w-full px-4 py-3 text-left hover:bg-primary/5 transition-all duration-200 flex items-center gap-3 first:rounded-t-xl last:rounded-b-xl"
                                             >
                                                 {result.avatarUrl && (
                                                     <img
@@ -270,7 +376,8 @@ export function Navbar({
                                                     <div className="font-medium truncate">{result.title}</div>
                                                     <div className="text-sm text-muted-foreground">
                                                         {result.type === "user" ? "Channel" : "VOD"}
-                                                        {result.followerCount !== undefined && ` • ${result.followerCount} followers`}
+                                                        {result.type === "user" && ` • ${formatNumber(result.followerCount || 0)} followers`}
+                                                        {result.type === "vod" && result.viewCount !== undefined && ` • ${formatNumber(result.viewCount)} views`}
                                                         {result.isLive && " • Live"}
                                                     </div>
                                                 </div>

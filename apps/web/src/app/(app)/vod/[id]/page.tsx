@@ -19,6 +19,7 @@ interface VodDetails {
   createdAt: string;
   s3Url: string | null;
   thumbnailUrl: string | null;
+  viewCount: number;
   channel: {
     id: string;
     displayName: string;
@@ -190,11 +191,11 @@ export default function VodPage() {
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Eye className="h-4 w-4" />
-                  <span>Published {formatDate(vodDetails.publishedAt)}</span>
+                  <span>{formatNumber(vodDetails.viewCount)} views</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  <span>Created {formatDate(vodDetails.createdAt)}</span>
+                  <span>Published {formatDate(vodDetails.publishedAt)}</span>
                 </div>
               </div>
             </div>

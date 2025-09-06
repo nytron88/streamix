@@ -61,7 +61,13 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
         skip,
         take: limit,
         orderBy: { publishedAt: "desc" },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          visibility: true,
+          thumbnailS3Key: true,
+          viewCount: true,
+          publishedAt: true,
           channel: {
             select: {
               id: true,
@@ -87,7 +93,7 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
       id: vod.id,
       title: vod.title,
       thumbnailUrl: vod.thumbnailS3Key ? getCloudFrontUrl(vod.thumbnailS3Key) : undefined,
-      viewCount: 0, // View tracking not yet implemented
+      viewCount: vod.viewCount,
       publishedAt: vod.publishedAt!.toISOString(),
       visibility: vod.visibility,
       channel: {

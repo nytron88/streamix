@@ -198,6 +198,7 @@ model Vod {
   title            String
   visibility       VodVisibility @default(PUBLIC)
   thumbnailS3Key   String?
+  viewCount        Int           @default(0)
 
   publishedAt      DateTime?
   createdAt        DateTime      @default(now())

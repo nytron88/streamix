@@ -16,6 +16,7 @@ interface Vod {
     thumbnailUrl: string | null;
     publishedAt: string;
     createdAt: string;
+    viewCount: number;
 }
 
 interface ChannelVodsProps {
@@ -83,6 +84,13 @@ export function ChannelVods({ channelSlug, isSubscribed = false }: ChannelVodsPr
             month: "short",
             day: "numeric",
         });
+    };
+
+    const formatNumber = (num: number | null | undefined): string => {
+        if (num === null || num === undefined) return "0";
+        if (num < 1000) return num.toString();
+        if (num < 1000000) return (num / 1000).toFixed(1) + "K";
+        return (num / 1000000).toFixed(1) + "M";
     };
 
     if (loading && vods.length === 0) {
@@ -194,11 +202,11 @@ export function ChannelVods({ channelSlug, isSubscribed = false }: ChannelVodsPr
                                     </div>
                                 )}
 
-                                {/* Duration placeholder - you might want to add actual duration */}
+                                {/* View count */}
                                 <div className="absolute bottom-2 right-2">
                                     <Badge variant="secondary" className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        Live
+                                        <Eye className="h-3 w-3" />
+                                        {formatNumber(vod.viewCount)}
                                     </Badge>
                                 </div>
                             </div>

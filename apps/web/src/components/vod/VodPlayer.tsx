@@ -33,10 +33,23 @@ export function VodPlayer({ vodId, title, videoUrl: propVideoUrl, className }: V
     const [volume, setVolume] = useState(1);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
+    const [hasTrackedView, setHasTrackedView] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Track view when video starts playing
+    const trackView = async () => {
+        if (hasTrackedView) return;
+        
+        try {
+            await axios.post(`/api/vods/${vodId}/view`);
+            setHasTrackedView(true);
+        } catch (error) {
+            // Silently handle view tracking errors
+        }
+    };
 
     // Fetch video URL only if not provided as prop
     useEffect(() => {
@@ -74,6 +87,7 @@ export function VodPlayer({ vodId, title, videoUrl: propVideoUrl, className }: V
         if (videoRef.current) {
             videoRef.current.play();
             setIsPlaying(true);
+            trackView(); // Track view when user starts playing
         }
     };
 
