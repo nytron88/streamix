@@ -10,6 +10,7 @@ import {
     DashboardDesktopSidebar,
     DashboardMobileSidebar
 } from "@/components/layout";
+import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import { APIResponse } from "@/types/apiResponse";
 import { RecommendedChannel } from "@/types/recommendations";
 
@@ -57,36 +58,38 @@ export default function AppLayout({
     }, []);
 
     return (
-        <div className="min-h-screen bg-background">
-            <Navbar
-                onMobileMenuToggle={toggleMobileMenu}
-                mobileSearchOpen={mobileSearchOpen}
-                onMobileSearchToggle={toggleMobileSearch}
-            />
-            <div className="flex">
-                {isDashboardRoute ? (
-                    <>
-                        <DashboardDesktopSidebar />
-                        <DashboardMobileSidebar open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
-                    </>
-                ) : (
-                    <>
-                        <DesktopSidebar
-                            recommendedChannels={recommendedChannels}
-                            loading={loading}
-                        />
-                        <MobileSidebar
-                            open={mobileMenuOpen}
-                            onOpenChange={setMobileMenuOpen}
-                            recommendedChannels={recommendedChannels}
-                            loading={loading}
-                        />
-                    </>
-                )}
-                <main className="flex-1 p-4 md:p-6 max-w-full overflow-hidden">
-                    {children}
-                </main>
+        <NotificationProvider showToasts={true} subscribeToGlobal={false}>
+            <div className="min-h-screen bg-background">
+                <Navbar
+                    onMobileMenuToggle={toggleMobileMenu}
+                    mobileSearchOpen={mobileSearchOpen}
+                    onMobileSearchToggle={toggleMobileSearch}
+                />
+                <div className="flex">
+                    {isDashboardRoute ? (
+                        <>
+                            <DashboardDesktopSidebar />
+                            <DashboardMobileSidebar open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
+                        </>
+                    ) : (
+                        <>
+                            <DesktopSidebar
+                                recommendedChannels={recommendedChannels}
+                                loading={loading}
+                            />
+                            <MobileSidebar
+                                open={mobileMenuOpen}
+                                onOpenChange={setMobileMenuOpen}
+                                recommendedChannels={recommendedChannels}
+                                loading={loading}
+                            />
+                        </>
+                    )}
+                    <main className="flex-1 p-4 md:p-6 max-w-full overflow-hidden">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </NotificationProvider>
     );
 }

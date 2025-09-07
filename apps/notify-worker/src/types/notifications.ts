@@ -9,8 +9,11 @@ export interface TipNotificationData {
   createdAt: string;
   // Additional metadata
   channelName?: string;
+  channelSlug?: string;
+  channelAvatarUrl?: string;
   viewerName?: string;
   viewerEmail?: string;
+  viewerAvatarUrl?: string;
 }
 
 export interface FollowNotificationData {
@@ -21,8 +24,11 @@ export interface FollowNotificationData {
   createdAt: string;
   // Additional metadata
   channelName?: string;
+  channelSlug?: string;
+  channelAvatarUrl?: string;
   followerName?: string;
   followerEmail?: string;
+  followerAvatarUrl?: string;
 }
 
 export interface SubscriptionNotificationData {
@@ -35,8 +41,11 @@ export interface SubscriptionNotificationData {
   createdAt: string;
   // Additional metadata
   channelName?: string;
+  channelSlug?: string;
+  channelAvatarUrl?: string;
   subscriberName?: string;
   subscriberEmail?: string;
+  subscriberAvatarUrl?: string;
   action: 'CREATED' | 'UPDATED' | 'DELETED' | 'RENEWED';
 }
 

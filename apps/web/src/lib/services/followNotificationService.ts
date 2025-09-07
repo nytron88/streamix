@@ -34,7 +34,6 @@ export class FollowNotificationService {
       await redis.sadd('notification:pending:list', notification.id);
       await redis.setex(pendingKey, this.TTL_SECONDS, '1');
       
-      console.log('Stored follow notification:', notification.id);
       return true;
     } catch (error) {
       console.error('Error storing follow notification:', error);
@@ -101,7 +100,6 @@ export class FollowNotificationService {
         await redis.del(...pendingKeys);
       }
 
-      console.log(`Marked ${notificationIds.length} follow notifications as processed`);
       return true;
     } catch (error) {
       console.error('Error marking follow notifications as processed:', error);

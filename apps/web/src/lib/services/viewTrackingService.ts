@@ -27,7 +27,6 @@ export class ViewTrackingService {
       }
 
       // Increment view count in Redis
-      console.log('Incrementing view count for VOD:', vodId);
       const viewKey = `${this.VIEW_COUNT_PREFIX}${vodId}`;
       await redis.incr(viewKey);
       

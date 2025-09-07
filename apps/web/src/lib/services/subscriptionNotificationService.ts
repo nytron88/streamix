@@ -37,7 +37,6 @@ export class SubscriptionNotificationService {
       await redis.sadd('notification:pending:list', notification.id);
       await redis.setex(pendingKey, this.TTL_SECONDS, '1');
       
-      console.log('Stored subscription notification:', notification.id);
       return true;
     } catch (error) {
       console.error('Error storing subscription notification:', error);
@@ -104,7 +103,6 @@ export class SubscriptionNotificationService {
         await redis.del(...pendingKeys);
       }
 
-      console.log(`Marked ${notificationIds.length} subscription notifications as processed`);
       return true;
     } catch (error) {
       console.error('Error marking subscription notifications as processed:', error);

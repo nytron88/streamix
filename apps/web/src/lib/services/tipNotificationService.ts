@@ -37,7 +37,6 @@ export class TipNotificationService {
       await redis.sadd('notification:pending:list', notification.id);
       await redis.setex(pendingKey, this.TTL_SECONDS, '1');
       
-      console.log('Stored tip notification:', notification.id);
       return true;
     } catch (error) {
       console.error('Error storing tip notification:', error);
@@ -104,7 +103,6 @@ export class TipNotificationService {
         await redis.del(...pendingKeys);
       }
 
-      console.log(`Marked ${notificationIds.length} tip notifications as processed`);
       return true;
     } catch (error) {
       console.error('Error marking tip notifications as processed:', error);

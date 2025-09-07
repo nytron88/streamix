@@ -74,8 +74,14 @@ export class NotificationWorker {
         return;
       }
 
-      // Process in batches
-      const batches = this.createBatches(pendingIds, config.worker.batchSize);
+      // Check for duplicate IDs and deduplicate
+      const uniqueIds = [...new Set(pendingIds)];
+      if (uniqueIds.length !== pendingIds.length) {
+        logger.warn(`Found ${pendingIds.length - uniqueIds.length} duplicate notification IDs in pending list - deduplicating`);
+      }
+
+      // Process in batches using unique IDs
+      const batches = this.createBatches(uniqueIds, config.worker.batchSize);
       
       for (const batch of batches) {
         await this.processBatch(batch);
@@ -125,11 +131,20 @@ export class NotificationWorker {
         return;
       }
 
-      // Store notifications in Postgres
+      // Store notifications in Postgres and get enriched data
       const storageResult = await NotificationStorage.batchStoreNotifications(validNotifications);
       
-      // Publish notifications to Redis for real-time updates
-      const publishResult = await NotificationPublisher.batchPublishNotifications(validNotifications);
+      // Create enriched notifications for publishing
+      const enrichedNotifications = validNotifications.map(notification => {
+        const enrichedData = storageResult.enrichedData.get(notification.id);
+        return {
+          ...notification,
+          data: enrichedData || notification.data
+        };
+      });
+      
+      // Publish enriched notifications to Redis for real-time updates
+      const publishResult = await NotificationPublisher.batchPublishNotifications(enrichedNotifications);
 
       // Log results
       logger.info('Batch processing results', {
@@ -147,8 +162,8 @@ export class NotificationWorker {
       );
 
       if (successfullyProcessed.length > 0) {
+        logger.info(`Marking ${successfullyProcessed.length} notifications as processed: ${successfullyProcessed.join(', ')}`);
         await NotificationProcessor.markAsProcessed(successfullyProcessed);
-        logger.info(`Marked ${successfullyProcessed.length} notifications as processed`);
       }
 
       // Log failed notifications for manual investigation

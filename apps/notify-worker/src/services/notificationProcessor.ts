@@ -105,7 +105,7 @@ export class NotificationProcessor {
         await redis.del(...pendingKeys);
       }
 
-      logger.info(`Marked ${notificationIds.length} notifications as processed`);
+      logger.info(`Successfully marked ${notificationIds.length} notifications as processed`);
       return true;
     } catch (error) {
       logger.error('Error marking notifications as processed:', error);
