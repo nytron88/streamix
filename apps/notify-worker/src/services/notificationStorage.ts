@@ -7,6 +7,12 @@ import {
 } from '../types/notifications';
 import { NotificationType } from '@prisma/client';
 
+// Utility function for sanitizing strings
+const sanitizeString = (str: string | undefined | null, maxLength = 255) => {
+  if (!str) return undefined;
+  return String(str).slice(0, maxLength).trim();
+};
+
 export class NotificationStorage {
   /**
    * Store a tip notification in Postgres
@@ -48,12 +54,7 @@ export class NotificationStorage {
         return { success: false };
       }
 
-      // Sanitize and enrich the notification data
-      const sanitizeString = (str: string | undefined | null, maxLength = 255) => {
-        if (!str) return undefined;
-        return String(str).slice(0, maxLength).trim();
-      };
-
+      // Enrich the notification data
       const enrichedData = {
         ...data,
         channelName: sanitizeString(data.channelName || channel.displayName),
@@ -150,18 +151,23 @@ export class NotificationStorage {
         return { success: false };
       }
 
+      logger.info('Follow notification data:', {
+        followerId: data.followerId,
+        followerName: follower.name,
+        channelId: data.channelId,
+        channelName: channel.displayName,
+        followerChannelId: followerChannel?.id,
+        followerChannelSlug: followerChannel?.slug,
+        action: data.action
+      });
+
       // Only store FOLLOWED notifications (not UNFOLLOWED)
       if (data.action === 'UNFOLLOWED') {
-        logger.debug(`Skipping UNFOLLOWED notification: ${data.id}`);
-        return { success: true };
+        logger.info(`Skipping UNFOLLOWED notification: ${data.id}`);
+        return { success: false }; // Return false so it's not stored but still processed
       }
 
-      // Sanitize and enrich the notification data
-      const sanitizeString = (str: string | undefined | null, maxLength = 255) => {
-        if (!str) return undefined;
-        return String(str).slice(0, maxLength).trim();
-      };
-
+      // Enrich the notification data
       const enrichedData = {
         ...data,
         followerName: sanitizeString(data.followerName || follower.name) || 'Anonymous',
@@ -202,7 +208,9 @@ export class NotificationStorage {
         },
       });
 
-      logger.info(`Stored follow notification in Postgres: ${data.id}`);
+      logger.info(`Stored follow notification in Postgres: ${data.id}`, {
+        payload: payload
+      });
       return { success: true, enrichedData };
     } catch (error) {
       logger.error(`Error storing follow notification ${data.id}:`, error);
@@ -250,12 +258,7 @@ export class NotificationStorage {
         return { success: false };
       }
 
-      // Sanitize and enrich the notification data
-      const sanitizeString = (str: string | undefined | null, maxLength = 255) => {
-        if (!str) return undefined;
-        return String(str).slice(0, maxLength).trim();
-      };
-
+      // Enrich the notification data
       const enrichedData = {
         ...data,
         channelName: sanitizeString(data.channelName || channel.displayName),

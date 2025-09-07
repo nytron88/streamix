@@ -127,6 +127,7 @@ export class NotificationWorker {
 
       if (validNotifications.length === 0) {
         logger.warn('No valid notifications in batch after validation');
+        // Mark all notifications as processed (including filtered UNFOLLOWED ones)
         await NotificationProcessor.markAsProcessed(notificationIds);
         return;
       }
@@ -134,8 +135,14 @@ export class NotificationWorker {
       // Store notifications in Postgres and get enriched data
       const storageResult = await NotificationStorage.batchStoreNotifications(validNotifications);
       
+      // Only publish notifications that were successfully stored
+      const successfullyStoredIds = new Set(storageResult.success);
+      const notificationsToPublish = validNotifications.filter(notification => 
+        successfullyStoredIds.has(notification.id)
+      );
+      
       // Create enriched notifications for publishing
-      const enrichedNotifications = validNotifications.map(notification => {
+      const enrichedNotifications = notificationsToPublish.map(notification => {
         const enrichedData = storageResult.enrichedData.get(notification.id);
         return {
           ...notification,
@@ -161,15 +168,22 @@ export class NotificationWorker {
         publishResult.success.includes(id)
       );
 
-      if (successfullyProcessed.length > 0) {
-        logger.info(`Marking ${successfullyProcessed.length} notifications as processed: ${successfullyProcessed.join(', ')}`);
-        await NotificationProcessor.markAsProcessed(successfullyProcessed);
+      // Also mark UNFOLLOWED notifications as processed (they're intentionally not stored)
+      const unfollowedIds = validNotifications
+        .filter(n => n.type === 'FOLLOW' && (n.data as any).action === 'UNFOLLOWED')
+        .map(n => n.id);
+
+      const allProcessed = [...successfullyProcessed, ...unfollowedIds];
+
+      if (allProcessed.length > 0) {
+        logger.info(`Marking ${allProcessed.length} notifications as processed: ${allProcessed.join(', ')}`);
+        await NotificationProcessor.markAsProcessed(allProcessed);
       }
 
-      // Log failed notifications for manual investigation
+      // Log failed notifications for manual investigation (excluding UNFOLLOWED)
       const failed = [
-        ...storageResult.failed,
-        ...publishResult.failed.filter(id => !storageResult.failed.includes(id))
+        ...storageResult.failed.filter(id => !unfollowedIds.includes(id)),
+        ...publishResult.failed.filter(id => !storageResult.failed.includes(id) && !unfollowedIds.includes(id))
       ];
 
       if (failed.length > 0) {

@@ -22,6 +22,10 @@ export interface TipNotificationData {
   viewerName?: string;
   viewerEmail?: string;
   viewerAvatarUrl?: string;
+  viewerChannelId?: string;
+  viewerChannelSlug?: string;
+  viewerChannelName?: string;
+  viewerChannelAvatarUrl?: string;
 }
 
 export interface FollowNotificationData {
@@ -37,6 +41,10 @@ export interface FollowNotificationData {
   followerName?: string;
   followerEmail?: string;
   followerAvatarUrl?: string;
+  followerChannelId?: string;
+  followerChannelSlug?: string;
+  followerChannelName?: string;
+  followerChannelAvatarUrl?: string;
 }
 
 export interface SubscriptionNotificationData {
@@ -54,6 +62,10 @@ export interface SubscriptionNotificationData {
   subscriberName?: string;
   subscriberEmail?: string;
   subscriberAvatarUrl?: string;
+  subscriberChannelId?: string;
+  subscriberChannelSlug?: string;
+  subscriberChannelName?: string;
+  subscriberChannelAvatarUrl?: string;
   action: 'CREATED' | 'UPDATED' | 'DELETED' | 'RENEWED';
 }
 
