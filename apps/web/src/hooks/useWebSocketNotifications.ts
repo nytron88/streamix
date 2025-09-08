@@ -238,11 +238,10 @@ export function useWebSocketNotifications(
       });
 
       socket.on('connected', (message: string) => {
-        console.log('📨 Welcome message:', message);
+        // Welcome message received
       });
 
       socket.on('notification', (notification: PublishableNotification) => {
-        console.log('🔔 Received notification:', notification);
         addNotification(notification);
       });
 

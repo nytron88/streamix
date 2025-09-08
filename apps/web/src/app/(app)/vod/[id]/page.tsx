@@ -93,7 +93,6 @@ export default function VodPage() {
         const response = await axios.get(`/api/channel/${vodDetails.channel.slug}/public`);
         // The API returns { channel: {...}, assets: {...}, viewer: {...} }
         const { channel, assets } = response.data.payload;
-        console.log("Channel API response:", { channel, assets });
         setChannelInfo({
           ...channel,
           assets
