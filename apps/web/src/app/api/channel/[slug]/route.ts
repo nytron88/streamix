@@ -1,26 +1,25 @@
-import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { requireAuth, isNextResponse } from "@/lib/api/requireAuth";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
 import redis from "@/lib/redis/redis";
 import { getAvatarUrl, getBannerUrl } from "@/lib/services/cdnService";
-import { logger } from "@/lib/utils/logger";
+import logger from "@/lib/utils/logger";
 import { NextRequest } from "next/server";
 
 const TTL_SECONDS = 300;
 
-export const GET = withLoggerAndErrorHandler(async (
+export const GET = async (
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) => {
   const auth = await requireAuth();
   if (isNextResponse(auth)) return auth;
 
   const { userId: viewerId } = auth;
-  const { slug } = params;
+  const { slug } = await params;
 
   // Validate slug format to prevent injection
-  if (!slug || typeof slug !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+  if (!slug || typeof slug !== "string" || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
     return errorResponse("Invalid channel slug format", 400);
   }
 
@@ -45,7 +44,10 @@ export const GET = withLoggerAndErrorHandler(async (
           select: {
             id: true,
             name: true,
+            email: true,
             imageUrl: true,
+            createdAt: true,
+            updatedAt: true,
           },
         },
         stream: {
@@ -106,8 +108,8 @@ export const GET = withLoggerAndErrorHandler(async (
     const isOwner = channel.userId === viewerId;
 
     // Get avatar and banner URLs
-    const avatarUrl = await getAvatarUrl(channel.avatarS3Key);
-    const bannerUrl = await getBannerUrl(channel.bannerS3Key);
+    const avatarUrl = getAvatarUrl(channel, channel.user);
+    const bannerUrl = getBannerUrl(channel);
 
     const response = {
       channel: {
@@ -141,7 +143,7 @@ export const GET = withLoggerAndErrorHandler(async (
 
     return successResponse("Channel fetched successfully", 200, response);
   } catch (err) {
-    logger.error('Failed to fetch channel', {
+    logger.error("Failed to fetch channel", {
       slug,
       viewerId,
       error: err instanceof Error ? err.message : String(err),
@@ -151,4 +153,4 @@ export const GET = withLoggerAndErrorHandler(async (
       message: err instanceof Error ? err.message : String(err),
     });
   }
-});
+};

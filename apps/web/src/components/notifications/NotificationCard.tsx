@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 interface NotificationCardProps {
   notification: PublishableNotification;
@@ -62,9 +63,11 @@ export function NotificationCard({
       
       if (response.data.success) {
         setIsFollowing(true);
+        toast.success('Successfully followed channel!');
       }
     } catch (error) {
       console.error('Failed to follow channel:', error);
+      toast.error('Failed to follow channel');
     } finally {
       setIsFollowLoading(false);
     }

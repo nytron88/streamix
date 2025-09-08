@@ -11,14 +11,15 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
   if (isNextResponse(auth)) return auth;
 
   const { userId } = auth;
-  
+
   // Rate limiting check (basic implementation)
   const rateLimitKey = `notifications:rate:${userId}`;
   const rateLimitCount = await redis.get(rateLimitKey);
-  if (rateLimitCount && parseInt(rateLimitCount) > 100) { // 100 requests per minute
+  if (rateLimitCount && parseInt(rateLimitCount) > 100) {
+    // 100 requests per minute
     return errorResponse("Rate limit exceeded", 429);
   }
-  
+
   // Increment rate limit counter
   await redis.incr(rateLimitKey);
   await redis.expire(rateLimitKey, 60); // 1 minute expiry

@@ -7,14 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Bell, 
-  BellOff, 
-  Trash2, 
-  RefreshCw, 
-  Wifi, 
+import {
+  Bell,
+  Trash2,
+  RefreshCw,
+  Wifi,
   WifiOff,
-  Settings,
   Filter
 } from 'lucide-react';
 
@@ -26,10 +24,7 @@ export default function NotificationsPage() {
     error,
     isLoading,
     hasLoadedInitial,
-    connect,
-    disconnect,
     reconnect,
-    clearNotifications,
     clearAllNotifications,
     removeNotification,
     fetchNotifications,
@@ -53,7 +48,7 @@ export default function NotificationsPage() {
     return acc;
   }, [] as typeof notifications);
 
-  const filteredNotifications = uniqueNotifications.filter(notification => 
+  const filteredNotifications = uniqueNotifications.filter(notification =>
     filter === 'all' || notification.type === filter
   );
 
@@ -86,7 +81,7 @@ export default function NotificationsPage() {
   // Handle clear all notifications
   const handleClearAll = async () => {
     if (isClearing) return;
-    
+
     setIsClearing(true);
     try {
       const type = filter === 'all' ? undefined : filter;
@@ -141,7 +136,7 @@ export default function NotificationsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={connect}
+                onClick={reconnect}
                 disabled={connecting}
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${connecting ? 'animate-spin' : ''}`} />
@@ -161,31 +156,6 @@ export default function NotificationsPage() {
               <span>Filters & Actions</span>
             </CardTitle>
             <div className="flex items-center space-x-2">
-              {connected ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={disconnect}
-                  disabled={connecting}
-                >
-                  <BellOff className="w-4 h-4 mr-2" />
-                  Disconnect
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={connect}
-                  disabled={connecting}
-                >
-                  {connecting ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Bell className="w-4 h-4 mr-2" />
-                  )}
-                  {connecting ? 'Connecting...' : 'Connect'}
-                </Button>
-              )}
               {error && (
                 <Button
                   variant="outline"
@@ -255,20 +225,11 @@ export default function NotificationsPage() {
                 {filter === 'all' ? 'No notifications yet' : `No ${filter.toLowerCase()} notifications`}
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                {connected 
+                {connected
                   ? "You're all caught up! New notifications will appear here in real-time."
-                  : "Connect to start receiving real-time notifications."
+                  : "Loading notifications..."
                 }
               </p>
-              {!connected && !connecting && (
-                <Button
-                  onClick={connect}
-                  className="mt-4"
-                >
-                  <Wifi className="w-4 h-4 mr-2" />
-                  Connect to Notifications
-                </Button>
-              )}
             </CardContent>
           </Card>
         ) : (

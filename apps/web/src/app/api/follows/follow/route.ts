@@ -8,6 +8,7 @@ import { ChannelIdSchema } from "@/schemas/channelIdSchema";
 import { ChannelId } from "@/types/channel";
 import { Prisma } from "@prisma/client";
 import { FollowNotificationService, FollowNotificationData } from "@/lib/services/followNotificationService";
+import redis from "@/lib/redis/redis";
 
 export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const auth = await requireAuth();
@@ -93,6 +94,10 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       targetChannelId: channelId,
       targetUserId: result.userId, // Channel owner's user ID
     });
+
+    // Clear the channel page cache by slug
+    const channelCacheKey = `channel:slug:${result.slug}`;
+    await redis.del(channelCacheKey);
 
     return successResponse("Followed successfully", 200, {
       followed: true,

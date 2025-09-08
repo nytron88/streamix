@@ -58,7 +58,7 @@ interface ChannelStats {
 
 export default function ChannelPage() {
     const params = useParams();
-    const slug = params.u as string;
+    const slug = params.slug as string;
     const { user } = useUser();
     const { user: clerkUser } = useClerkUser();
 

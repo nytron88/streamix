@@ -50,6 +50,12 @@ export async function clearUserSocialCaches(context: CacheInvalidationContext) {
     );
   }
 
+  // Channel page caches (by slug)
+  if (targetChannelId) {
+    // We need to get the channel slug to clear the channel page cache
+    // This will be handled by the API routes that call this function
+  }
+
   // Ban check caches (bidirectional)
   if (channelId && targetUserId) {
     cacheKeysToDelete.push(`ban:check:${channelId}:${targetUserId}`);

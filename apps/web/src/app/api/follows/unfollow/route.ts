@@ -7,7 +7,7 @@ import { clearFollowRelatedCaches } from "@/lib/utils/cacheInvalidation";
 import { ChannelIdSchema } from "@/schemas/channelIdSchema";
 import { ChannelId } from "@/types/channel";
 import { Prisma } from "@prisma/client";
-import { FollowNotificationService, FollowNotificationData } from "@/lib/services/followNotificationService";
+import redis from "@/lib/redis/redis";
 
 export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
   const auth = await requireAuth();
@@ -59,19 +59,7 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       };
     });
 
-    // Store unfollow notification in Redis (only if there was actually a follow to unfollow)
-    if (result.unfollowed && result.followId) {
-      const unfollowNotification: FollowNotificationData = {
-        id: result.followId,
-        followerId: userId,
-        channelId,
-        action: 'UNFOLLOWED',
-        createdAt: new Date().toISOString(),
-        // Additional metadata will be populated by the worker
-      };
-
-      await FollowNotificationService.storeNotification(unfollowNotification);
-    }
+    // No notification needed for unfollows
 
     // Clear all related caches using the comprehensive cache invalidation utility
     await clearFollowRelatedCaches({
@@ -79,6 +67,10 @@ export const POST = withLoggerAndErrorHandler(async (req: NextRequest) => {
       targetChannelId: channelId,
       targetUserId: result.channel.userId // Channel owner's user ID
     });
+
+    // Clear the channel page cache by slug
+    const channelCacheKey = `channel:slug:${result.channel.slug}`;
+    await redis.del(channelCacheKey);
 
     return successResponse("Unfollow processed", 200, {
       followed: false,

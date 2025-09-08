@@ -109,6 +109,7 @@ export function useWebSocketNotifications(
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const manuallyDisconnectedRef = useRef<boolean>(false);
 
   // Add notification to list
   const addNotification = useCallback((notification: PublishableNotification) => {
@@ -186,9 +187,15 @@ export function useWebSocketNotifications(
 
   // Connect to WebSocket server
   const connect = useCallback(async () => {
-    if (!userId || state.connecting || state.connected) return;
+    if (!userId) return;
+    
+    // Check current state to avoid duplicate connections
+    if (state.connecting || state.connected || socketRef.current) {
+      return;
+    }
 
     try {
+      manuallyDisconnectedRef.current = false; // Reset manual disconnect flag
       setState(prev => ({ ...prev, connecting: true, error: null }));
 
       // Get JWT token from Clerk
@@ -207,7 +214,7 @@ export function useWebSocketNotifications(
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        forceNew: true,
+        forceNew: false, // Don't force new connection
       });
 
       socketRef.current = socket;
@@ -259,7 +266,7 @@ export function useWebSocketNotifications(
         }));
 
         // Auto-reconnect unless manually disconnected
-        if (reason !== 'io client disconnect' && autoConnect) {
+        if (reason !== 'io client disconnect' && autoConnect && !manuallyDisconnectedRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, 3000);
@@ -287,33 +294,16 @@ export function useWebSocketNotifications(
     }
   }, [userId, getToken, autoConnect, subscribeToGlobal, subscribeToChannels, addNotification, state.connecting, state.connected]);
 
-  // Disconnect from WebSocket server
+  // Disconnect from WebSocket server (disabled - always connected)
   const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = undefined;
-    }
-
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
-
-    setState({
-      connected: false,
-      connecting: false,
-      error: null,
-      socket: null,
-    });
+    // Disconnect functionality disabled - always stay connected
   }, []);
 
-  // Reconnect to WebSocket server
+  // Reconnect to WebSocket server (simplified - just connect)
   const reconnect = useCallback(() => {
-    disconnect();
-    setTimeout(() => {
-      connect();
-    }, 1000);
-  }, [disconnect, connect]);
+    // Just connect - no need to disconnect first
+    connect();
+  }, [connect]);
 
   // Subscribe to channel notifications
   const subscribeToChannel = useCallback((channelId: string) => {
@@ -331,7 +321,7 @@ export function useWebSocketNotifications(
 
   // Auto-connect when component mounts and user is authenticated
   useEffect(() => {
-    if (autoConnect && userId && !state.connected && !state.connecting) {
+    if (autoConnect && userId && !state.connected && !state.connecting && !manuallyDisconnectedRef.current && !socketRef.current) {
       connect();
     }
 
@@ -340,14 +330,19 @@ export function useWebSocketNotifications(
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [autoConnect, userId, connect, state.connected, state.connecting]);
+  }, [autoConnect, userId]); // Removed problematic dependencies
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      disconnect();
+      // Only cleanup on unmount, don't disconnect during normal operation
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
-  }, [disconnect]);
+  }, []);
 
   return {
     ...state,

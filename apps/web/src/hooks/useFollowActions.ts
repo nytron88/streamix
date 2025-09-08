@@ -11,9 +11,14 @@ export function useFollowActions() {
 
     setIsFollowLoading(true);
     try {
-      await axios.post("/api/follows/follow", { channelId });
-      toast.success("Successfully followed channel!");
-      return true;
+      const response = await axios.post("/api/follows/follow", { channelId });
+      if (response.data.success) {
+        toast.success("Successfully followed channel!");
+        return true;
+      } else {
+        toast.error("Failed to follow channel");
+        return false;
+      }
     } catch (error) {
       console.error("Follow error:", error);
       toast.error("Failed to follow channel");
@@ -28,9 +33,14 @@ export function useFollowActions() {
 
     setIsUnfollowLoading(true);
     try {
-      await axios.post("/api/follows/unfollow", { channelId });
-      toast.success("Successfully unfollowed channel!");
-      return true;
+      const response = await axios.post("/api/follows/unfollow", { channelId });
+      if (response.data.success) {
+        toast.success("Successfully unfollowed channel!");
+        return true;
+      } else {
+        toast.error("Failed to unfollow channel");
+        return false;
+      }
     } catch (error) {
       console.error("Unfollow error:", error);
       toast.error("Failed to unfollow channel");

@@ -1,11 +1,11 @@
-import prisma from '../lib/prisma';
-import { logger } from '../lib/logger';
-import { 
-  TipNotificationData, 
-  FollowNotificationData, 
-  SubscriptionNotificationData 
-} from '../types/notifications';
-import { NotificationType } from '@prisma/client';
+import prisma from "../lib/prisma";
+import { logger } from "../lib/logger";
+import {
+  TipNotificationData,
+  FollowNotificationData,
+  SubscriptionNotificationData,
+} from "../types/notifications";
+import { NotificationType } from "@prisma/client";
 
 // Utility function for sanitizing strings
 const sanitizeString = (str: string | undefined | null, maxLength = 255) => {
@@ -17,40 +17,48 @@ export class NotificationStorage {
   /**
    * Store a tip notification in Postgres
    */
-  static async storeTipNotification(data: TipNotificationData): Promise<{ success: boolean; enrichedData?: TipNotificationData }> {
+  static async storeTipNotification(
+    data: TipNotificationData
+  ): Promise<{ success: boolean; enrichedData?: TipNotificationData }> {
     try {
       // Get the channel and viewer data to enrich the notification
       const [channel, viewer, viewerChannel] = await Promise.all([
         prisma.channel.findUnique({
           where: { id: data.channelId },
-          select: { 
-            userId: true, 
-            displayName: true, 
-            slug: true,
-            avatarS3Key: true
-          }
-        }),
-        data.userId ? prisma.user.findUnique({
-          where: { id: data.userId },
-          select: { 
-            name: true, 
-            email: true,
-            imageUrl: true
-          }
-        }) : null,
-        data.userId ? prisma.channel.findUnique({
-          where: { userId: data.userId },
           select: {
-            id: true,
-            slug: true,
+            userId: true,
             displayName: true,
-            avatarS3Key: true
-          }
-        }) : null
+            slug: true,
+            avatarS3Key: true,
+          },
+        }),
+        data.userId
+          ? prisma.user.findUnique({
+              where: { id: data.userId },
+              select: {
+                name: true,
+                email: true,
+                imageUrl: true,
+              },
+            })
+          : null,
+        data.userId
+          ? prisma.channel.findUnique({
+              where: { userId: data.userId },
+              select: {
+                id: true,
+                slug: true,
+                displayName: true,
+                avatarS3Key: true,
+              },
+            })
+          : null,
       ]);
 
       if (!channel) {
-        logger.error(`Channel not found for tip notification: ${data.channelId}`);
+        logger.error(
+          `Channel not found for tip notification: ${data.channelId}`
+        );
         return { success: false };
       }
 
@@ -59,14 +67,23 @@ export class NotificationStorage {
         ...data,
         channelName: sanitizeString(data.channelName || channel.displayName),
         channelSlug: sanitizeString(channel.slug, 50),
-        channelAvatarUrl: channel.avatarS3Key ? `https://your-cdn-domain.com/${sanitizeString(channel.avatarS3Key, 100)}` : undefined,
-        viewerName: sanitizeString(data.viewerName || viewer?.name) || 'Anonymous',
+        channelAvatarUrl: channel.avatarS3Key
+          ? `https://${
+              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+            }/${sanitizeString(channel.avatarS3Key, 100)}`
+          : undefined,
+        viewerName:
+          sanitizeString(data.viewerName || viewer?.name) || "Anonymous",
         viewerEmail: sanitizeString(data.viewerEmail || viewer?.email, 100),
         viewerAvatarUrl: sanitizeString(viewer?.imageUrl, 500),
         viewerChannelId: sanitizeString(viewerChannel?.id, 50),
         viewerChannelSlug: sanitizeString(viewerChannel?.slug, 50),
         viewerChannelName: sanitizeString(viewerChannel?.displayName),
-        viewerChannelAvatarUrl: viewerChannel?.avatarS3Key ? `https://your-cdn-domain.com/${sanitizeString(viewerChannel.avatarS3Key, 100)}` : undefined,
+        viewerChannelAvatarUrl: viewerChannel?.avatarS3Key
+          ? `https://${
+              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+            }/${sanitizeString(viewerChannel.avatarS3Key, 100)}`
+          : undefined,
       };
 
       const payload = {
@@ -109,26 +126,28 @@ export class NotificationStorage {
   /**
    * Store a follow notification in Postgres
    */
-  static async storeFollowNotification(data: FollowNotificationData): Promise<{ success: boolean; enrichedData?: FollowNotificationData }> {
+  static async storeFollowNotification(
+    data: FollowNotificationData
+  ): Promise<{ success: boolean; enrichedData?: FollowNotificationData }> {
     try {
       // Get the channel and follower data to enrich the notification
       const [channel, follower, followerChannel] = await Promise.all([
         prisma.channel.findUnique({
           where: { id: data.channelId },
-          select: { 
-            userId: true, 
-            displayName: true, 
+          select: {
+            userId: true,
+            displayName: true,
             slug: true,
-            avatarS3Key: true
-          }
+            avatarS3Key: true,
+          },
         }),
         prisma.user.findUnique({
           where: { id: data.followerId },
-          select: { 
-            name: true, 
+          select: {
+            name: true,
             email: true,
-            imageUrl: true
-          }
+            imageUrl: true,
+          },
         }),
         prisma.channel.findUnique({
           where: { userId: data.followerId },
@@ -136,50 +155,66 @@ export class NotificationStorage {
             id: true,
             slug: true,
             displayName: true,
-            avatarS3Key: true
-          }
-        })
+            avatarS3Key: true,
+          },
+        }),
       ]);
 
       if (!channel) {
-        logger.error(`Channel not found for follow notification: ${data.channelId}`);
+        logger.error(
+          `Channel not found for follow notification: ${data.channelId}`
+        );
         return { success: false };
       }
 
       if (!follower) {
-        logger.error(`Follower not found for follow notification: ${data.followerId}`);
+        logger.error(
+          `Follower not found for follow notification: ${data.followerId}`
+        );
         return { success: false };
       }
 
-      logger.info('Follow notification data:', {
+      logger.info("Follow notification data:", {
         followerId: data.followerId,
         followerName: follower.name,
         channelId: data.channelId,
         channelName: channel.displayName,
         followerChannelId: followerChannel?.id,
         followerChannelSlug: followerChannel?.slug,
-        action: data.action
+        action: data.action,
       });
 
       // Only store FOLLOWED notifications (not UNFOLLOWED)
-      if (data.action === 'UNFOLLOWED') {
+      if (data.action === "UNFOLLOWED") {
         logger.info(`Skipping UNFOLLOWED notification: ${data.id}`);
-        return { success: false }; // Return false so it's not stored but still processed
+        return { success: true }; // Return true so it's marked as processed but not stored
       }
 
       // Enrich the notification data
       const enrichedData = {
         ...data,
-        followerName: sanitizeString(data.followerName || follower.name) || 'Anonymous',
-        followerEmail: sanitizeString(data.followerEmail || follower.email, 100),
+        followerName:
+          sanitizeString(data.followerName || follower.name) || "Anonymous",
+        followerEmail: sanitizeString(
+          data.followerEmail || follower.email,
+          100
+        ),
         followerAvatarUrl: sanitizeString(follower.imageUrl, 500),
         followerChannelId: sanitizeString(followerChannel?.id, 50),
         followerChannelSlug: sanitizeString(followerChannel?.slug, 50),
         followerChannelName: sanitizeString(followerChannel?.displayName),
-        followerChannelAvatarUrl: followerChannel?.avatarS3Key ? `https://your-cdn-domain.com/${sanitizeString(followerChannel.avatarS3Key, 100)}` : undefined,
+        followerChannelAvatarUrl: followerChannel?.avatarS3Key
+          ? `https://${
+              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+            }/${sanitizeString(followerChannel.avatarS3Key, 100)}`
+          : undefined,
         channelName: sanitizeString(data.channelName || channel.displayName),
         channelSlug: sanitizeString(channel.slug, 50),
-        channelAvatarUrl: channel.avatarS3Key ? `https://your-cdn-domain.com/${sanitizeString(channel.avatarS3Key, 100)}` : undefined,
+        channelAvatarUrl: channel.avatarS3Key
+          ? `https://${
+              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+            }/${sanitizeString(channel.avatarS3Key, 100)}`
+          : undefined,
       };
 
       const payload = {
@@ -208,9 +243,7 @@ export class NotificationStorage {
         },
       });
 
-      logger.info(`Stored follow notification in Postgres: ${data.id}`, {
-        payload: payload
-      });
+      logger.info(`Stored follow notification in Postgres: ${data.id}`);
       return { success: true, enrichedData };
     } catch (error) {
       logger.error(`Error storing follow notification ${data.id}:`, error);
@@ -221,40 +254,51 @@ export class NotificationStorage {
   /**
    * Store a subscription notification in Postgres
    */
-  static async storeSubscriptionNotification(data: SubscriptionNotificationData): Promise<{ success: boolean; enrichedData?: SubscriptionNotificationData }> {
+  static async storeSubscriptionNotification(
+    data: SubscriptionNotificationData
+  ): Promise<{
+    success: boolean;
+    enrichedData?: SubscriptionNotificationData;
+  }> {
     try {
       // Get the channel and subscriber data for enrichment
       const [channel, subscriber, subscriberChannel] = await Promise.all([
         prisma.channel.findUnique({
           where: { id: data.channelId },
-          select: { 
-            userId: true,
-            displayName: true, 
-            slug: true,
-            avatarS3Key: true
-          }
-        }),
-        data.userId ? prisma.user.findUnique({
-          where: { id: data.userId },
-          select: { 
-            name: true, 
-            email: true,
-            imageUrl: true
-          }
-        }) : null,
-        data.userId ? prisma.channel.findUnique({
-          where: { userId: data.userId },
           select: {
-            id: true,
-            slug: true,
+            userId: true,
             displayName: true,
-            avatarS3Key: true
-          }
-        }) : null
+            slug: true,
+            avatarS3Key: true,
+          },
+        }),
+        data.userId
+          ? prisma.user.findUnique({
+              where: { id: data.userId },
+              select: {
+                name: true,
+                email: true,
+                imageUrl: true,
+              },
+            })
+          : null,
+        data.userId
+          ? prisma.channel.findUnique({
+              where: { userId: data.userId },
+              select: {
+                id: true,
+                slug: true,
+                displayName: true,
+                avatarS3Key: true,
+              },
+            })
+          : null,
       ]);
 
       if (!channel) {
-        logger.error(`Channel not found for subscription notification: ${data.channelId}`);
+        logger.error(
+          `Channel not found for subscription notification: ${data.channelId}`
+        );
         return { success: false };
       }
 
@@ -263,14 +307,27 @@ export class NotificationStorage {
         ...data,
         channelName: sanitizeString(data.channelName || channel.displayName),
         channelSlug: sanitizeString(channel.slug, 50),
-        channelAvatarUrl: channel.avatarS3Key ? `https://your-cdn-domain.com/${sanitizeString(channel.avatarS3Key, 100)}` : undefined,
-        subscriberName: sanitizeString(data.subscriberName || subscriber?.name) || 'Anonymous',
-        subscriberEmail: sanitizeString(data.subscriberEmail || subscriber?.email, 100),
+        channelAvatarUrl: channel.avatarS3Key
+          ? `https://${
+              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+            }/${sanitizeString(channel.avatarS3Key, 100)}`
+          : undefined,
+        subscriberName:
+          sanitizeString(data.subscriberName || subscriber?.name) ||
+          "Anonymous",
+        subscriberEmail: sanitizeString(
+          data.subscriberEmail || subscriber?.email,
+          100
+        ),
         subscriberAvatarUrl: sanitizeString(subscriber?.imageUrl, 500),
         subscriberChannelId: sanitizeString(subscriberChannel?.id, 50),
         subscriberChannelSlug: sanitizeString(subscriberChannel?.slug, 50),
         subscriberChannelName: sanitizeString(subscriberChannel?.displayName),
-        subscriberChannelAvatarUrl: subscriberChannel?.avatarS3Key ? `https://your-cdn-domain.com/${sanitizeString(subscriberChannel.avatarS3Key, 100)}` : undefined,
+        subscriberChannelAvatarUrl: subscriberChannel?.avatarS3Key
+          ? `https://${
+              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+            }/${sanitizeString(subscriberChannel.avatarS3Key, 100)}`
+          : undefined,
       };
 
       const payload = {
@@ -305,7 +362,10 @@ export class NotificationStorage {
       logger.info(`Stored subscription notification in Postgres: ${data.id}`);
       return { success: true, enrichedData };
     } catch (error) {
-      logger.error(`Error storing subscription notification ${data.id}:`, error);
+      logger.error(
+        `Error storing subscription notification ${data.id}:`,
+        error
+      );
       return { success: false };
     }
   }
@@ -314,16 +374,21 @@ export class NotificationStorage {
    * Store a notification based on its type
    */
   static async storeNotification(
-    type: 'TIP' | 'FOLLOW' | 'SUB', 
-    data: TipNotificationData | FollowNotificationData | SubscriptionNotificationData
+    type: "TIP" | "FOLLOW" | "SUB",
+    data:
+      | TipNotificationData
+      | FollowNotificationData
+      | SubscriptionNotificationData
   ): Promise<{ success: boolean; enrichedData?: any }> {
     switch (type) {
-      case 'TIP':
+      case "TIP":
         return this.storeTipNotification(data as TipNotificationData);
-      case 'FOLLOW':
+      case "FOLLOW":
         return this.storeFollowNotification(data as FollowNotificationData);
-      case 'SUB':
-        return this.storeSubscriptionNotification(data as SubscriptionNotificationData);
+      case "SUB":
+        return this.storeSubscriptionNotification(
+          data as SubscriptionNotificationData
+        );
       default:
         logger.error(`Unknown notification type: ${type}`);
         return { success: false };
@@ -334,18 +399,28 @@ export class NotificationStorage {
    * Batch store multiple notifications
    */
   static async batchStoreNotifications(
-    notifications: Array<{ 
-      id: string; 
-      type: 'TIP' | 'FOLLOW' | 'SUB'; 
-      data: TipNotificationData | FollowNotificationData | SubscriptionNotificationData 
+    notifications: Array<{
+      id: string;
+      type: "TIP" | "FOLLOW" | "SUB";
+      data:
+        | TipNotificationData
+        | FollowNotificationData
+        | SubscriptionNotificationData;
     }>
-  ): Promise<{ success: string[]; failed: string[]; enrichedData: Map<string, any> }> {
+  ): Promise<{
+    success: string[];
+    failed: string[];
+    enrichedData: Map<string, any>;
+  }> {
     const success: string[] = [];
     const failed: string[] = [];
     const enrichedData = new Map<string, any>();
 
     for (const notification of notifications) {
-      const result = await this.storeNotification(notification.type, notification.data);
+      const result = await this.storeNotification(
+        notification.type,
+        notification.data
+      );
       if (result.success) {
         success.push(notification.id);
         if (result.enrichedData) {
@@ -356,7 +431,9 @@ export class NotificationStorage {
       }
     }
 
-    logger.info(`Batch storage complete: ${success.length} success, ${failed.length} failed`);
+    logger.info(
+      `Batch storage complete: ${success.length} success, ${failed.length} failed`
+    );
     return { success, failed, enrichedData };
   }
 }
