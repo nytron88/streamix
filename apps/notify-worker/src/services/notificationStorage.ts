@@ -321,6 +321,33 @@ export class NotificationStorage {
         return { success: false };
       }
 
+      if (!subscriber) {
+        logger.error(
+          `Subscriber not found for subscription notification: ${data.userId}`
+        );
+        return { success: false };
+      }
+
+      // Check if CDN domain is properly configured
+      if (!config.cdn.domain || config.cdn.domain === 'your-cdn-domain.com') {
+        logger.error('CLOUDFRONT_DOMAIN is not set or using default value! This will cause incomplete subscription notification details.', {
+          cdnDomain: config.cdn.domain,
+          subscriberId: data.userId,
+          channelId: data.channelId,
+        });
+      }
+
+      logger.info("Subscription notification data:", {
+        subscriberId: data.userId,
+        subscriberName: subscriber.name,
+        channelId: data.channelId,
+        channelName: channel.displayName,
+        subscriberChannelId: subscriberChannel?.id,
+        subscriberChannelSlug: subscriberChannel?.slug,
+        action: data.action,
+        cdnDomain: config.cdn.domain,
+      });
+
       // Enrich the notification data
       const enrichedData = {
         ...data,
@@ -378,7 +405,15 @@ export class NotificationStorage {
         },
       });
 
-      logger.info(`Stored subscription notification in Postgres: ${data.id}`);
+      logger.info(`Stored subscription notification in Postgres: ${data.id}`, {
+        enrichedData: {
+          subscriberName: enrichedData.subscriberName,
+          subscriberChannelName: enrichedData.subscriberChannelName,
+          subscriberChannelAvatarUrl: enrichedData.subscriberChannelAvatarUrl,
+          channelName: enrichedData.channelName,
+          channelSlug: enrichedData.channelSlug,
+        }
+      });
       return { success: true, enrichedData };
     } catch (error) {
       logger.error(
