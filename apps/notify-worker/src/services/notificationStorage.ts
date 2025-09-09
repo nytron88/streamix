@@ -67,24 +67,24 @@ export class NotificationStorage {
       const enrichedData = {
         ...data,
         channelName: sanitizeString(data.channelName || channel.displayName) || 
-          `Channel_${data.channelId.slice(-6)}`, // Fallback channel name
+          "Your Channel", // Better fallback channel name
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
           ? `https://${config.cdn.domain}/${sanitizeString(channel.avatarS3Key, 100)}`
-          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || `Channel_${data.channelId.slice(-6)}`)}&background=random`,
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || "Your Channel")}&background=random`,
         viewerName:
           sanitizeString(data.viewerName || viewer?.name) || 
-          `User_${data.userId?.slice(-6) || 'Anonymous'}`, // Fallback to partial user ID
+          "Anonymous User", // Better fallback name
         viewerEmail: sanitizeString(data.viewerEmail || viewer?.email, 100),
         viewerAvatarUrl: sanitizeString(viewer?.imageUrl, 500) || 
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.viewerName || `User_${data.userId?.slice(-6) || 'Anonymous'}`)}&background=random`,
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.viewerName || "Anonymous User")}&background=random`,
         viewerChannelId: sanitizeString(viewerChannel?.id, 50),
         viewerChannelSlug: sanitizeString(viewerChannel?.slug, 50),
         viewerChannelName: sanitizeString(viewerChannel?.displayName) || 
-          `Channel_${data.userId?.slice(-6) || 'Unknown'}`, // Fallback channel name
+          "Anonymous Channel", // Better fallback channel name
         viewerChannelAvatarUrl: viewerChannel?.avatarS3Key
           ? `https://${config.cdn.domain}/${sanitizeString(viewerChannel.avatarS3Key, 100)}`
-          : `https://ui-avatars.com/api/?name=${encodeURIComponent(viewerChannel?.displayName || `Channel_${data.userId?.slice(-6) || 'Unknown'}`)}&background=random`,
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(viewerChannel?.displayName || "Anonymous Channel")}&background=random`,
       };
 
       const payload = {
@@ -193,26 +193,26 @@ export class NotificationStorage {
         ...data,
         followerName:
           sanitizeString(data.followerName || follower.name) || 
-          `User_${data.followerId.slice(-6)}`, // Fallback to partial user ID
+          "Anonymous User", // Better fallback name
         followerEmail: sanitizeString(
           data.followerEmail || follower.email,
           100
         ),
         followerAvatarUrl: sanitizeString(follower.imageUrl, 500) || 
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.followerName || `User_${data.followerId.slice(-6)}`)}&background=random`,
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.followerName || "Anonymous User")}&background=random`,
         followerChannelId: sanitizeString(followerChannel?.id, 50),
         followerChannelSlug: sanitizeString(followerChannel?.slug, 50),
         followerChannelName: sanitizeString(followerChannel?.displayName) || 
-          `Channel_${data.followerId.slice(-6)}`, // Fallback channel name
+          "Anonymous Channel", // Better fallback channel name
         followerChannelAvatarUrl: followerChannel?.avatarS3Key
           ? `https://${config.cdn.domain}/${sanitizeString(followerChannel.avatarS3Key, 100)}`
-          : `https://ui-avatars.com/api/?name=${encodeURIComponent(followerChannel?.displayName || `Channel_${data.followerId.slice(-6)}`)}&background=random`,
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(followerChannel?.displayName || "Anonymous Channel")}&background=random`,
         channelName: sanitizeString(data.channelName || channel.displayName) || 
-          `Channel_${data.channelId.slice(-6)}`, // Fallback channel name
+          "Your Channel", // Better fallback channel name
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
           ? `https://${config.cdn.domain}/${sanitizeString(channel.avatarS3Key, 100)}`
-          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || `Channel_${data.channelId.slice(-6)}`)}&background=random`,
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || "Your Channel")}&background=random`,
       };
 
       const payload = {
@@ -318,27 +318,27 @@ export class NotificationStorage {
       const enrichedData = {
         ...data,
         channelName: sanitizeString(data.channelName || channel.displayName) || 
-          `Channel_${data.channelId.slice(-6)}`, // Fallback channel name
+          "Your Channel", // Better fallback channel name
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
           ? `https://${config.cdn.domain}/${sanitizeString(channel.avatarS3Key, 100)}`
-          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || `Channel_${data.channelId.slice(-6)}`)}&background=random`,
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || "Your Channel")}&background=random`,
         subscriberName:
           sanitizeString(data.subscriberName || subscriber?.name) ||
-          `User_${data.userId.slice(-6)}`, // Fallback to partial user ID
+          "Anonymous User", // Better fallback name
         subscriberEmail: sanitizeString(
           data.subscriberEmail || subscriber?.email,
           100
         ),
         subscriberAvatarUrl: sanitizeString(subscriber?.imageUrl, 500) || 
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.subscriberName || `User_${data.userId.slice(-6)}`)}&background=random`,
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.subscriberName || "Anonymous User")}&background=random`,
         subscriberChannelId: sanitizeString(subscriberChannel?.id, 50),
         subscriberChannelSlug: sanitizeString(subscriberChannel?.slug, 50),
         subscriberChannelName: sanitizeString(subscriberChannel?.displayName) || 
-          `Channel_${data.userId.slice(-6)}`, // Fallback channel name
+          "Anonymous Channel", // Better fallback channel name
         subscriberChannelAvatarUrl: subscriberChannel?.avatarS3Key
           ? `https://${config.cdn.domain}/${sanitizeString(subscriberChannel.avatarS3Key, 100)}`
-          : `https://ui-avatars.com/api/?name=${encodeURIComponent(subscriberChannel?.displayName || `Channel_${data.userId.slice(-6)}`)}&background=random`,
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(subscriberChannel?.displayName || "Anonymous Channel")}&background=random`,
       };
 
       const payload = {
