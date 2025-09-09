@@ -14,8 +14,9 @@ export class WebSocketServer {
   private connectedClients: Map<string, Set<string>> = new Map(); // userId -> Set of socketIds
 
   constructor() {
-    // Create HTTP server with health check
+    // Create HTTP server with health check and CloudFront support
     this.httpServer = createServer((req, res) => {
+      // Handle health check
       if (req.url === '/health' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
@@ -23,18 +24,45 @@ export class WebSocketServer {
           timestamp: new Date().toISOString(),
           ...this.getStats()
         }));
+      } 
+      // Handle CloudFront health checks
+      else if (req.url === '/ping' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('pong');
+      }
+      // Handle Socket.IO requests
+      else if (req.url?.startsWith('/socket.io/')) {
+        // Let Socket.IO handle the request
+        return;
       } else {
         res.writeHead(404);
         res.end('Not Found');
       }
     });
 
-    // Initialize Socket.IO with CORS
+    // Initialize Socket.IO with CORS and CloudFront support
     this.io = new Server(this.httpServer, {
       cors: {
         origin: config.cors.origin,
         credentials: config.cors.credentials,
         methods: ['GET', 'POST'],
+      },
+      // CloudFront compatibility settings
+      transports: ['websocket', 'polling'],
+      allowEIO3: true,
+      // Handle CloudFront headers
+      allowRequest: (req, fn) => {
+        // Allow requests from CloudFront
+        const origin = req.headers.origin;
+        const allowedOrigins = Array.isArray(config.cors.origin) 
+          ? config.cors.origin 
+          : [config.cors.origin];
+        
+        if (!origin || allowedOrigins.includes(origin)) {
+          fn(null, true);
+        } else {
+          fn(null, false);
+        }
       },
     });
 

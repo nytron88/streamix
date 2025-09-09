@@ -204,7 +204,10 @@ export function useWebSocketNotifications(
         throw new Error('No authentication token available');
       }
 
-      const wsUrl = process.env.NEXT_PUBLIC_WSS_URL || 'http://localhost:8080';
+      // Support both CloudFront WSS and direct WS connections
+      const wsUrl = process.env.NEXT_PUBLIC_WSS_URL || 
+                   process.env.NEXT_PUBLIC_WS_URL || 
+                   'http://localhost:8080';
       
       const socket = io(wsUrl, {
         auth: { token },

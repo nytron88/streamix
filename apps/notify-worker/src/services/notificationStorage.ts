@@ -1,5 +1,6 @@
 import prisma from "../lib/prisma";
 import { logger } from "../lib/logger";
+import { config } from "../config";
 import {
   TipNotificationData,
   FollowNotificationData,
@@ -69,7 +70,7 @@ export class NotificationStorage {
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
           ? `https://${
-              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+              config.cdn.domain
             }/${sanitizeString(channel.avatarS3Key, 100)}`
           : undefined,
         viewerName:
@@ -81,7 +82,7 @@ export class NotificationStorage {
         viewerChannelName: sanitizeString(viewerChannel?.displayName),
         viewerChannelAvatarUrl: viewerChannel?.avatarS3Key
           ? `https://${
-              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+              config.cdn.domain
             }/${sanitizeString(viewerChannel.avatarS3Key, 100)}`
           : undefined,
       };
@@ -174,6 +175,15 @@ export class NotificationStorage {
         return { success: false };
       }
 
+      // Check if CDN domain is properly configured
+      if (!config.cdn.domain || config.cdn.domain === 'your-cdn-domain.com') {
+        logger.error('CLOUDFRONT_DOMAIN is not set or using default value! This will cause incomplete notification details.', {
+          cdnDomain: config.cdn.domain,
+          followerId: data.followerId,
+          channelId: data.channelId,
+        });
+      }
+
       logger.info("Follow notification data:", {
         followerId: data.followerId,
         followerName: follower.name,
@@ -182,6 +192,7 @@ export class NotificationStorage {
         followerChannelId: followerChannel?.id,
         followerChannelSlug: followerChannel?.slug,
         action: data.action,
+        cdnDomain: config.cdn.domain,
       });
 
       // Only store FOLLOWED notifications (not UNFOLLOWED)
@@ -205,14 +216,14 @@ export class NotificationStorage {
         followerChannelName: sanitizeString(followerChannel?.displayName),
         followerChannelAvatarUrl: followerChannel?.avatarS3Key
           ? `https://${
-              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+              config.cdn.domain
             }/${sanitizeString(followerChannel.avatarS3Key, 100)}`
           : undefined,
         channelName: sanitizeString(data.channelName || channel.displayName),
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
           ? `https://${
-              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+              config.cdn.domain
             }/${sanitizeString(channel.avatarS3Key, 100)}`
           : undefined,
       };
@@ -243,7 +254,15 @@ export class NotificationStorage {
         },
       });
 
-      logger.info(`Stored follow notification in Postgres: ${data.id}`);
+      logger.info(`Stored follow notification in Postgres: ${data.id}`, {
+        enrichedData: {
+          followerName: enrichedData.followerName,
+          followerChannelName: enrichedData.followerChannelName,
+          followerChannelAvatarUrl: enrichedData.followerChannelAvatarUrl,
+          channelName: enrichedData.channelName,
+          channelSlug: enrichedData.channelSlug,
+        }
+      });
       return { success: true, enrichedData };
     } catch (error) {
       logger.error(`Error storing follow notification ${data.id}:`, error);
@@ -309,7 +328,7 @@ export class NotificationStorage {
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
           ? `https://${
-              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+              config.cdn.domain
             }/${sanitizeString(channel.avatarS3Key, 100)}`
           : undefined,
         subscriberName:
@@ -325,7 +344,7 @@ export class NotificationStorage {
         subscriberChannelName: sanitizeString(subscriberChannel?.displayName),
         subscriberChannelAvatarUrl: subscriberChannel?.avatarS3Key
           ? `https://${
-              process.env.CLOUDFRONT_DOMAIN || "your-cdn-domain.com"
+              config.cdn.domain
             }/${sanitizeString(subscriberChannel.avatarS3Key, 100)}`
           : undefined,
       };

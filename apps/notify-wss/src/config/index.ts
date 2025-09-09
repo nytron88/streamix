@@ -15,8 +15,14 @@ export const config = {
     jwtSecret: process.env.JWT_SECRET || 'your-jwt-secret',
   },
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN ? 
+      process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : 
+      ['http://localhost:3000'],
     credentials: true,
+  },
+  cloudfront: {
+    domain: process.env.CLOUDFRONT_DOMAIN,
+    enabled: process.env.CLOUDFRONT_ENABLED === 'true',
   },
   logging: {
     level: process.env.LOG_LEVEL || 'info',

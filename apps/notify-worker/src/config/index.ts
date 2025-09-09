@@ -17,4 +17,7 @@ export const config = {
   logging: {
     level: process.env.LOG_LEVEL || 'info',
   },
+  cdn: {
+    domain: process.env.CLOUDFRONT_DOMAIN || 'your-cdn-domain.com',
+  },
 } as const;
