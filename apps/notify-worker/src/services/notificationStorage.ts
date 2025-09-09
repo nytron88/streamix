@@ -63,28 +63,28 @@ export class NotificationStorage {
         return { success: false };
       }
 
-      // Enrich the notification data
+      // Enrich the notification data with fallbacks
       const enrichedData = {
         ...data,
-        channelName: sanitizeString(data.channelName || channel.displayName),
+        channelName: sanitizeString(data.channelName || channel.displayName) || 
+          `Channel_${data.channelId.slice(-6)}`, // Fallback channel name
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
-          ? `https://${
-              config.cdn.domain
-            }/${sanitizeString(channel.avatarS3Key, 100)}`
-          : undefined,
+          ? `https://${config.cdn.domain}/${sanitizeString(channel.avatarS3Key, 100)}`
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || `Channel_${data.channelId.slice(-6)}`)}&background=random`,
         viewerName:
-          sanitizeString(data.viewerName || viewer?.name) || "Anonymous",
+          sanitizeString(data.viewerName || viewer?.name) || 
+          `User_${data.userId?.slice(-6) || 'Anonymous'}`, // Fallback to partial user ID
         viewerEmail: sanitizeString(data.viewerEmail || viewer?.email, 100),
-        viewerAvatarUrl: sanitizeString(viewer?.imageUrl, 500),
+        viewerAvatarUrl: sanitizeString(viewer?.imageUrl, 500) || 
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.viewerName || `User_${data.userId?.slice(-6) || 'Anonymous'}`)}&background=random`,
         viewerChannelId: sanitizeString(viewerChannel?.id, 50),
         viewerChannelSlug: sanitizeString(viewerChannel?.slug, 50),
-        viewerChannelName: sanitizeString(viewerChannel?.displayName),
+        viewerChannelName: sanitizeString(viewerChannel?.displayName) || 
+          `Channel_${data.userId?.slice(-6) || 'Unknown'}`, // Fallback channel name
         viewerChannelAvatarUrl: viewerChannel?.avatarS3Key
-          ? `https://${
-              config.cdn.domain
-            }/${sanitizeString(viewerChannel.avatarS3Key, 100)}`
-          : undefined,
+          ? `https://${config.cdn.domain}/${sanitizeString(viewerChannel.avatarS3Key, 100)}`
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(viewerChannel?.displayName || `Channel_${data.userId?.slice(-6) || 'Unknown'}`)}&background=random`,
       };
 
       const payload = {
@@ -177,23 +177,10 @@ export class NotificationStorage {
 
       // Check if CDN domain is properly configured
       if (!config.cdn.domain || config.cdn.domain === 'your-cdn-domain.com') {
-        logger.error('CLOUDFRONT_DOMAIN is not set or using default value! This will cause incomplete notification details.', {
+        logger.warn('CLOUDFRONT_DOMAIN is not set or using default value. Notification details may be incomplete.', {
           cdnDomain: config.cdn.domain,
-          followerId: data.followerId,
-          channelId: data.channelId,
         });
       }
-
-      logger.info("Follow notification data:", {
-        followerId: data.followerId,
-        followerName: follower.name,
-        channelId: data.channelId,
-        channelName: channel.displayName,
-        followerChannelId: followerChannel?.id,
-        followerChannelSlug: followerChannel?.slug,
-        action: data.action,
-        cdnDomain: config.cdn.domain,
-      });
 
       // Only store FOLLOWED notifications (not UNFOLLOWED)
       if (data.action === "UNFOLLOWED") {
@@ -201,31 +188,31 @@ export class NotificationStorage {
         return { success: true }; // Return true so it's marked as processed but not stored
       }
 
-      // Enrich the notification data
+      // Enrich the notification data with fallbacks
       const enrichedData = {
         ...data,
         followerName:
-          sanitizeString(data.followerName || follower.name) || "Anonymous",
+          sanitizeString(data.followerName || follower.name) || 
+          `User_${data.followerId.slice(-6)}`, // Fallback to partial user ID
         followerEmail: sanitizeString(
           data.followerEmail || follower.email,
           100
         ),
-        followerAvatarUrl: sanitizeString(follower.imageUrl, 500),
+        followerAvatarUrl: sanitizeString(follower.imageUrl, 500) || 
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.followerName || `User_${data.followerId.slice(-6)}`)}&background=random`,
         followerChannelId: sanitizeString(followerChannel?.id, 50),
         followerChannelSlug: sanitizeString(followerChannel?.slug, 50),
-        followerChannelName: sanitizeString(followerChannel?.displayName),
+        followerChannelName: sanitizeString(followerChannel?.displayName) || 
+          `Channel_${data.followerId.slice(-6)}`, // Fallback channel name
         followerChannelAvatarUrl: followerChannel?.avatarS3Key
-          ? `https://${
-              config.cdn.domain
-            }/${sanitizeString(followerChannel.avatarS3Key, 100)}`
-          : undefined,
-        channelName: sanitizeString(data.channelName || channel.displayName),
+          ? `https://${config.cdn.domain}/${sanitizeString(followerChannel.avatarS3Key, 100)}`
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(followerChannel?.displayName || `Channel_${data.followerId.slice(-6)}`)}&background=random`,
+        channelName: sanitizeString(data.channelName || channel.displayName) || 
+          `Channel_${data.channelId.slice(-6)}`, // Fallback channel name
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
-          ? `https://${
-              config.cdn.domain
-            }/${sanitizeString(channel.avatarS3Key, 100)}`
-          : undefined,
+          ? `https://${config.cdn.domain}/${sanitizeString(channel.avatarS3Key, 100)}`
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || `Channel_${data.channelId.slice(-6)}`)}&background=random`,
       };
 
       const payload = {
@@ -254,15 +241,7 @@ export class NotificationStorage {
         },
       });
 
-      logger.info(`Stored follow notification in Postgres: ${data.id}`, {
-        enrichedData: {
-          followerName: enrichedData.followerName,
-          followerChannelName: enrichedData.followerChannelName,
-          followerChannelAvatarUrl: enrichedData.followerChannelAvatarUrl,
-          channelName: enrichedData.channelName,
-          channelSlug: enrichedData.channelSlug,
-        }
-      });
+      logger.info(`Stored follow notification in Postgres: ${data.id}`);
       return { success: true, enrichedData };
     } catch (error) {
       logger.error(`Error storing follow notification ${data.id}:`, error);
@@ -330,50 +309,36 @@ export class NotificationStorage {
 
       // Check if CDN domain is properly configured
       if (!config.cdn.domain || config.cdn.domain === 'your-cdn-domain.com') {
-        logger.error('CLOUDFRONT_DOMAIN is not set or using default value! This will cause incomplete subscription notification details.', {
+        logger.warn('CLOUDFRONT_DOMAIN is not set or using default value. Notification details may be incomplete.', {
           cdnDomain: config.cdn.domain,
-          subscriberId: data.userId,
-          channelId: data.channelId,
         });
       }
 
-      logger.info("Subscription notification data:", {
-        subscriberId: data.userId,
-        subscriberName: subscriber.name,
-        channelId: data.channelId,
-        channelName: channel.displayName,
-        subscriberChannelId: subscriberChannel?.id,
-        subscriberChannelSlug: subscriberChannel?.slug,
-        action: data.action,
-        cdnDomain: config.cdn.domain,
-      });
-
-      // Enrich the notification data
+      // Enrich the notification data with fallbacks
       const enrichedData = {
         ...data,
-        channelName: sanitizeString(data.channelName || channel.displayName),
+        channelName: sanitizeString(data.channelName || channel.displayName) || 
+          `Channel_${data.channelId.slice(-6)}`, // Fallback channel name
         channelSlug: sanitizeString(channel.slug, 50),
         channelAvatarUrl: channel.avatarS3Key
-          ? `https://${
-              config.cdn.domain
-            }/${sanitizeString(channel.avatarS3Key, 100)}`
-          : undefined,
+          ? `https://${config.cdn.domain}/${sanitizeString(channel.avatarS3Key, 100)}`
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.displayName || `Channel_${data.channelId.slice(-6)}`)}&background=random`,
         subscriberName:
           sanitizeString(data.subscriberName || subscriber?.name) ||
-          "Anonymous",
+          `User_${data.userId.slice(-6)}`, // Fallback to partial user ID
         subscriberEmail: sanitizeString(
           data.subscriberEmail || subscriber?.email,
           100
         ),
-        subscriberAvatarUrl: sanitizeString(subscriber?.imageUrl, 500),
+        subscriberAvatarUrl: sanitizeString(subscriber?.imageUrl, 500) || 
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(data.subscriberName || `User_${data.userId.slice(-6)}`)}&background=random`,
         subscriberChannelId: sanitizeString(subscriberChannel?.id, 50),
         subscriberChannelSlug: sanitizeString(subscriberChannel?.slug, 50),
-        subscriberChannelName: sanitizeString(subscriberChannel?.displayName),
+        subscriberChannelName: sanitizeString(subscriberChannel?.displayName) || 
+          `Channel_${data.userId.slice(-6)}`, // Fallback channel name
         subscriberChannelAvatarUrl: subscriberChannel?.avatarS3Key
-          ? `https://${
-              config.cdn.domain
-            }/${sanitizeString(subscriberChannel.avatarS3Key, 100)}`
-          : undefined,
+          ? `https://${config.cdn.domain}/${sanitizeString(subscriberChannel.avatarS3Key, 100)}`
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(subscriberChannel?.displayName || `Channel_${data.userId.slice(-6)}`)}&background=random`,
       };
 
       const payload = {
@@ -405,15 +370,7 @@ export class NotificationStorage {
         },
       });
 
-      logger.info(`Stored subscription notification in Postgres: ${data.id}`, {
-        enrichedData: {
-          subscriberName: enrichedData.subscriberName,
-          subscriberChannelName: enrichedData.subscriberChannelName,
-          subscriberChannelAvatarUrl: enrichedData.subscriberChannelAvatarUrl,
-          channelName: enrichedData.channelName,
-          channelSlug: enrichedData.channelSlug,
-        }
-      });
+      logger.info(`Stored subscription notification in Postgres: ${data.id}`);
       return { success: true, enrichedData };
     } catch (error) {
       logger.error(

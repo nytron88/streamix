@@ -22,8 +22,7 @@ CLOUDFRONT_DOMAIN=your-cloudfront-domain.cloudfront.net
 
 **If `CLOUDFRONT_DOMAIN` is not set, notifications will show incomplete details like:**
 - "Follow Someone started following you on your channel"
-- Missing avatar URLs
-- Missing channel names
+- Missing avatar URLs and channel names
 
 **This is the most common cause of notification display issues in production.**
 

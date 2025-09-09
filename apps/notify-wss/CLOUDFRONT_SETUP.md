@@ -4,10 +4,7 @@ This guide explains how to set up CloudFront to provide WSS (secure WebSocket) a
 
 ## Overview
 
-CloudFront can be used as a proxy to provide secure WebSocket connections (WSS) to your WebSocket server running on HTTP. This eliminates the need for:
-- A custom domain
-- SSL certificates
-- HTTPS configuration on your server
+CloudFront can be used as a proxy to provide secure WebSocket connections (WSS) to your WebSocket server running on HTTP. This eliminates the need for a custom domain and SSL certificates.
 
 ## CloudFront Configuration
 
