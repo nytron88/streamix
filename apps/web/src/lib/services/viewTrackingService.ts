@@ -30,6 +30,12 @@ export class ViewTrackingService {
       const viewKey = `${this.VIEW_COUNT_PREFIX}${vodId}`;
       await redis.incr(viewKey);
       
+      // Publish update for real-time processing
+      await redis.publish('view_count_updates', JSON.stringify({
+        vodId,
+        count: 1
+      }));
+      
       return true;
     } catch (error) {
       console.error('Error tracking view:', error);

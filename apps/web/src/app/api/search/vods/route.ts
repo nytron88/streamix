@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma/prisma";
 import redis from "@/lib/redis/redis";
 import { getCloudFrontUrl } from "@/lib/services/s3Service";
 import { getAvatarUrl } from "@/lib/services/cdnService";
+import { ViewCountHelper } from "@/lib/services/viewCountHelper";
 import { VodSearchQuerySchema } from "@/schemas/searchQuerySchema";
 import { VodSearchResponse, VodSearchResult } from "@/types/search";
 
@@ -88,12 +89,21 @@ export const GET = withLoggerAndErrorHandler(async (req: NextRequest) => {
 
     const totalPages = Math.ceil(total / limit);
 
+    // Get combined view counts for all VODs
+    const vodIds = vods.map(vod => vod.id);
+    const dbViewCounts = vods.reduce((acc, vod) => {
+      acc[vod.id] = vod.viewCount;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const combinedViewCounts = await ViewCountHelper.getCombinedViewCounts(vodIds, dbViewCounts);
+
     // Format results
     const results: VodSearchResult[] = vods.map((vod) => ({
       id: vod.id,
       title: vod.title,
       thumbnailUrl: vod.thumbnailS3Key ? getCloudFrontUrl(vod.thumbnailS3Key) : undefined,
-      viewCount: vod.viewCount,
+      viewCount: combinedViewCounts[vod.id] || vod.viewCount,
       publishedAt: vod.publishedAt!.toISOString(),
       visibility: vod.visibility,
       channel: {

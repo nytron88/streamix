@@ -7,6 +7,7 @@ import {
   getCloudFrontUrl,
   deleteFolderIfExists,
 } from "@/lib/services/s3Service";
+import { ViewCountHelper } from "@/lib/services/viewCountHelper";
 import { z } from "zod";
 
 const VodUpdateSchema = z.object({
@@ -42,7 +43,7 @@ export const GET = withLoggerAndErrorHandler(
         id: true,
         title: true,
         visibility: true,
-
+        viewCount: true,
         s3Key: true,
         s3Bucket: true,
         s3Region: true,
@@ -58,10 +59,13 @@ export const GET = withLoggerAndErrorHandler(
       return errorResponse("VOD not found", 404);
     }
 
+    // Get combined view count (database + Redis)
+    const viewCount = await ViewCountHelper.getCombinedViewCount(vodId, vod.viewCount);
+
     return successResponse("VOD retrieved successfully", 200, {
       vod: {
         ...vod,
-        viewCount: 0, // TODO: Implement view tracking
+        viewCount,
         s3Url: vod.s3Key ? getCloudFrontUrl(vod.s3Key) : null,
         thumbnailUrl: vod.thumbnailS3Key
           ? getCloudFrontUrl(vod.thumbnailS3Key)

@@ -36,7 +36,7 @@ export async function POST(
       );
     }
 
-    // Get updated view count
+    // Get updated view count (Redis only for immediate response)
     const viewCount = await ViewTrackingService.getViewCount(vodId);
 
     return NextResponse.json({

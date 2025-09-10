@@ -3,7 +3,7 @@ import { withLoggerAndErrorHandler } from "@/lib/api/withLoggerAndErrorHandler";
 import { errorResponse, successResponse } from "@/lib/utils/responseWrapper";
 import prisma from "@/lib/prisma/prisma";
 import { getCloudFrontUrl } from "@/lib/services/s3Service";
-import { ViewTrackingService } from "@/lib/services/viewTrackingService";
+import { ViewCountHelper } from "@/lib/services/viewCountHelper";
 
 export const GET = withLoggerAndErrorHandler(
   async (req: NextRequest, { params }: { params: { id: string } }) => {
@@ -19,6 +19,7 @@ export const GET = withLoggerAndErrorHandler(
         id: true,
         title: true,
         visibility: true,
+        viewCount: true,
         s3Key: true,
         s3Bucket: true,
         s3Region: true,
@@ -46,8 +47,8 @@ export const GET = withLoggerAndErrorHandler(
       return errorResponse("VOD not found", 404);
     }
 
-    // Get view count from Redis
-    const viewCount = await ViewTrackingService.getViewCount(vodId);
+    // Get combined view count (database + Redis)
+    const viewCount = await ViewCountHelper.getCombinedViewCount(vodId, vod.viewCount);
 
     // Add CloudFront URLs and view count
     const vodWithUrls = {
