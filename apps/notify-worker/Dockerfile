@@ -1,8 +1,11 @@
-FROM node:18-alpine AS base
+FROM node:20-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apt-get update && apt-get install -y \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy package files
@@ -21,6 +24,7 @@ COPY apps/web/prisma ./prisma
 COPY apps/notify-worker .
 
 # Generate Prisma client
+ENV PRISMA_CLI_BINARY_TARGETS=linux-arm64-openssl-3.0.x
 RUN npx prisma generate
 
 # Build the application
@@ -32,6 +36,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 worker
 
@@ -39,11 +49,16 @@ RUN adduser --system --uid 1001 worker
 COPY --from=builder --chown=worker:nodejs /app/dist ./dist
 COPY --from=builder --chown=worker:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=worker:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=worker:nodejs /app/prisma ./prisma
 
 USER worker
 
-EXPOSE 3000
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "console.log('Worker is running')" || exit 1
 
-ENV PORT=3000
+EXPOSE 3001
+
+ENV PORT=3001
 
 CMD ["node", "dist/index.js"]

@@ -17,6 +17,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy notify-wss source
 COPY apps/notify-wss .
 
+# Install dev dependencies for building
+RUN npm ci --no-audit --no-fund
+
 # Build the application
 RUN npm run build
 
@@ -45,10 +48,10 @@ ENV PORT=8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "require('http').get('http://localhost:8080/ping', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Expose port
 EXPOSE 8080
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]
