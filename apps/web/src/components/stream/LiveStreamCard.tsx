@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Clock } from "lucide-react";
+import { Play } from "lucide-react";
 import { LiveStream } from "@/types/stream";
 
 interface LiveStreamCardProps {
@@ -13,21 +13,6 @@ interface LiveStreamCardProps {
 }
 
 export function LiveStreamCard({ stream }: LiveStreamCardProps) {
-
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return "Just now";
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays}d ago`;
-  };
 
   const getInitials = (name: string | null) => {
     if (!name) return "?";
@@ -57,7 +42,7 @@ export function LiveStreamCard({ stream }: LiveStreamCardProps) {
               <Play className="h-12 w-12 text-primary/50" />
             </div>
           )}
-          
+
           {/* Live Badge */}
           <div className="absolute top-2 left-2">
             <Badge variant="destructive" className="flex items-center gap-1">
@@ -92,18 +77,13 @@ export function LiveStreamCard({ stream }: LiveStreamCardProps) {
                   {getInitials(stream.channel.displayName)}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
                   {stream.channel.displayName}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{stream.channel.followerCount.toLocaleString()} followers</span>
-                  <span>•</span>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>{formatTimeAgo(stream.startedAt)}</span>
-                  </div>
                 </div>
               </div>
             </div>
