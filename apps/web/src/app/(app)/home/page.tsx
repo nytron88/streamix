@@ -8,7 +8,7 @@ import { LiveStreamCard } from "@/components/stream/LiveStreamCard";
 import { LiveStream, LiveStreamsResponse } from "@/types/stream";
 import { APIResponse } from "@/types/apiResponse";
 import axios from "axios";
-import { RefreshCw, Users, Play, TrendingUp } from "lucide-react";
+import { RefreshCw, Play, TrendingUp } from "lucide-react";
 
 export default function HomePage() {
   const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
@@ -155,7 +155,7 @@ export default function HomePage() {
 
       {/* Stats Cards */}
       {liveStreams.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -163,20 +163,6 @@ export default function HomePage() {
                 <div>
                   <p className="text-sm font-medium">Live Streams</p>
                   <p className="text-2xl font-bold">{liveStreams.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">Total Viewers</p>
-                  <p className="text-2xl font-bold">
-                    {liveStreams.reduce((acc, stream) => acc + Math.floor(Math.random() * 1000) + 1, 0)}
-                  </p>
                 </div>
               </div>
             </CardContent>
