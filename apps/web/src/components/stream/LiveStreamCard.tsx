@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Users, Clock } from "lucide-react";
+import { Play, Clock } from "lucide-react";
 import { LiveStream } from "@/types/stream";
 
 interface LiveStreamCardProps {
@@ -13,14 +13,6 @@ interface LiveStreamCardProps {
 }
 
 export function LiveStreamCard({ stream }: LiveStreamCardProps) {
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}k`;
-    }
-    return num.toString();
-  };
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -74,13 +66,6 @@ export function LiveStreamCard({ stream }: LiveStreamCardProps) {
             </Badge>
           </div>
 
-          {/* Viewers count (placeholder - would need real-time data) */}
-          <div className="absolute top-2 right-2">
-            <Badge variant="secondary" className="flex items-center gap-1 bg-black/50 text-white">
-              <Users className="w-3 h-3" />
-              {Math.floor(Math.random() * 1000) + 1}
-            </Badge>
-          </div>
 
           {/* Play overlay */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
@@ -113,7 +98,7 @@ export function LiveStreamCard({ stream }: LiveStreamCardProps) {
                   {stream.channel.displayName}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{formatNumber(stream.channel.followerCount)} followers</span>
+                  <span>{stream.channel.followerCount.toLocaleString()} followers</span>
                   <span>•</span>
                   <div className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
