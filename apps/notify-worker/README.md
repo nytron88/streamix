@@ -66,11 +66,14 @@ apps/notify-worker/
 
 2. **Set up environment variables**
    ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   
    # Required environment variables
    DATABASE_URL=postgresql://user:password@localhost:5432/streamix
    REDIS_URL=redis://localhost:6379
-   CLOUDFRONT_DOMAIN=your-cloudfront-domain.cloudfront.net
-   NODE_ENV=production
+   CLOUDFRONT_DOMAIN=your-cloudfront-domain.cloudfront.net  # For production only
+   NODE_ENV=development
    ```
 
 3. **Start the worker**
@@ -99,7 +102,7 @@ docker run -d \
 |----------|-------------|----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | Yes | - |
 | `REDIS_URL` | Redis connection string | Yes | - |
-| `CLOUDFRONT_DOMAIN` | CloudFront domain for CDN | Yes | - |
+| `CLOUDFRONT_DOMAIN` | CloudFront domain for CDN (production only) | No | - |
 | `NODE_ENV` | Node environment | No | `production` |
 | `LOG_LEVEL` | Logging level | No | `info` |
 
@@ -292,15 +295,3 @@ LOG_LEVEL=debug npm run dev
 - Implement data retention policies
 - Ensure GDPR compliance
 - Use encryption for sensitive data
-
-## Contributing
-
-1. Follow the existing code style
-2. Add tests for new features
-3. Update documentation
-4. Ensure all tests pass
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.

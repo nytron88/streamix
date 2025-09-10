@@ -230,14 +230,3 @@ Recommended values:
 - Standard: 30000ms (30s)
 - Low priority: 60000ms (1min)
 
-## Contributing
-
-1. Follow the existing code style
-2. Add tests for new features
-3. Update documentation
-4. Ensure all tests pass
-5. Test with Docker
-
-## License
-
-This project is part of the Streamix platform.

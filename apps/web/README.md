@@ -120,7 +120,7 @@ AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket-name
 
 # WebSocket
-NEXT_PUBLIC_WS_URL=http://localhost:8080
+NEXT_PUBLIC_WSS_URL=localhost:8000
 
 # LiveKit
 LIVEKIT_API_KEY=your_api_key
@@ -231,7 +231,7 @@ The application includes comprehensive API routes:
 - **Image Optimization**: Next.js Image component
 - **Code Splitting**: Automatic code splitting
 - **Caching**: Redis caching for database queries
-- **CDN**: AWS CloudFront integration
+- **CDN**: AWS CloudFront integration (production only)
 
 ## Debugging
 
@@ -255,15 +255,3 @@ The application includes comprehensive API routes:
 - [Clerk Documentation](https://clerk.com/docs)
 - [Stripe Documentation](https://stripe.com/docs)
 - [LiveKit Documentation](https://docs.livekit.io)
-
-## Contributing
-
-1. Follow the existing code style
-2. Add tests for new features
-3. Update documentation
-4. Ensure all tests pass
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.

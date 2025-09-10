@@ -66,11 +66,15 @@ apps/notify-wss/
 
 2. **Set up environment variables**
    ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   
    # Required environment variables
    REDIS_URL=redis://localhost:6379
-   PORT=8080
-   NODE_ENV=production
+   PORT=8000
+   NODE_ENV=development
    JWT_SECRET=your-jwt-secret-key
+   CORS_ORIGIN=http://localhost:3000
    ```
 
 3. **Start the server**
@@ -99,7 +103,7 @@ docker run -d \
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `REDIS_URL` | Redis connection string | Yes | - |
-| `PORT` | Server port | No | `8080` |
+| `PORT` | Server port | No | `8000` |
 | `NODE_ENV` | Node environment | No | `production` |
 | `JWT_SECRET` | JWT secret for authentication | Yes | - |
 | `LOG_LEVEL` | Logging level | No | `info` |
@@ -118,7 +122,7 @@ The server subscribes to the following Redis channels:
 
 ```javascript
 // Connect to WebSocket server
-const socket = io('http://localhost:8080', {
+const socket = io('http://localhost:8000', {
   auth: {
     token: 'your-jwt-token'
   }
@@ -204,7 +208,7 @@ import { io } from 'socket.io-client';
 
 class NotificationClient {
   constructor(token) {
-    this.socket = io('http://localhost:8080', {
+    this.socket = io('http://localhost:8000', {
       auth: { token }
     });
     
@@ -253,7 +257,7 @@ export function useNotifications(token: string) {
   useEffect(() => {
     if (!token) return;
     
-    const newSocket = io('http://localhost:8080', {
+    const newSocket = io('http://localhost:8000', {
       auth: { token }
     });
     

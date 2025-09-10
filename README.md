@@ -2,34 +2,40 @@
 
 A modern live streaming platform built with Next.js, featuring real-time chat, notifications, and monetization tools.
 
+**🌐 Live Demo**: [streamix-ten.vercel.app](https://streamix-ten.vercel.app)
+
 ## Features
 
-- **Live Streaming**: Go live instantly with powerful streaming tools
-- **Real-time Chat**: Interactive chat with moderation tools
+- **Live Streaming**: Go live instantly with powerful streaming tools powered by LiveKit
+- **Real-time Chat**: Interactive chat with moderation tools and subscriber-only mode
 - **Notifications**: Real-time WebSocket notifications for follows, tips, and subscriptions
-- **Monetization**: Built-in tipping and subscription system with Stripe
-- **VOD Support**: Video-on-demand with S3 storage
-- **User Management**: Complete user profiles and channel management
-- **Search & Discovery**: Find streams and content easily
+- **Monetization**: Built-in tipping and subscription system with Stripe integration
+- **VOD Support**: Video-on-demand with AWS S3 storage and CloudFront CDN
+- **User Management**: Complete user profiles and channel management with Clerk authentication
+- **Search & Discovery**: Find streams and content easily with advanced search
+- **View Tracking**: Real-time view count tracking with Redis and batch processing
+- **Responsive Design**: Mobile-first design with dark/light theme support
 
 ## Architecture
 
-This is a monorepo containing multiple services:
+This is a monorepo containing multiple microservices:
 
-- **`apps/web`** - Next.js frontend application
+- **`apps/web`** - Next.js 15 frontend application with TypeScript
 - **`apps/notify-worker`** - Background notification processing service
 - **`apps/notify-wss`** - WebSocket server for real-time notifications
+- **`apps/viewer-worker`** - Batch processing service for view count updates
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS 3
 - **Backend**: Node.js, Prisma ORM, PostgreSQL
-- **Real-time**: WebSockets, Redis
-- **Storage**: AWS S3, PostgreSQL
-- **Payments**: Stripe
-- **Streaming**: LiveKit
-- **Authentication**: Clerk
-- **Deployment**: Docker, Docker Compose
+- **Real-time**: WebSockets (Socket.IO), Redis Pub/Sub
+- **Storage**: AWS S3, CloudFront CDN, PostgreSQL
+- **Payments**: Stripe (subscriptions, tips, webhooks)
+- **Streaming**: LiveKit (WebRTC, SFU)
+- **Authentication**: Clerk (OAuth, webhooks)
+- **Deployment**: Docker, Docker Compose, Vercel, AW
+- **Monitoring**: Winston logging, health checks
 
 ## Quick Start
 
@@ -50,8 +56,13 @@ This is a monorepo containing multiple services:
 
 2. **Set up environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   # Copy environment files for each service
+   cp apps/web/.env.example apps/web/.env
+   cp apps/notify-worker/.env.example apps/notify-worker/.env
+   cp apps/notify-wss/.env.example apps/notify-wss/.env
+   cp apps/viewer-worker/.env.example apps/viewer-worker/.env
+   
+   # Edit each .env file with your configuration
    ```
 
 3. **Start all services**
@@ -61,7 +72,8 @@ This is a monorepo containing multiple services:
 
 4. **Access the application**
    - Web App: http://localhost:3000
-   - WebSocket Server: http://localhost:8080
+   - WebSocket Server: http://localhost:8000
+   - Viewer Worker Health: http://localhost:3003/health
    - Database: localhost:5432
    - Redis: localhost:6379
 
@@ -76,6 +88,7 @@ This is a monorepo containing multiple services:
    cd apps/web && npm install
    cd ../notify-worker && npm install
    cd ../notify-wss && npm install
+   cd ../viewer-worker && npm install
    ```
 
 2. **Set up the database**
@@ -95,6 +108,9 @@ This is a monorepo containing multiple services:
 
    # Terminal 3 - WebSocket server
    cd apps/notify-wss && npm run dev
+
+   # Terminal 4 - Viewer worker
+   cd apps/viewer-worker && npm run dev
    ```
 
 ## Project Structure
@@ -102,11 +118,31 @@ This is a monorepo containing multiple services:
 ```
 streamix/
 ├── apps/
-│   ├── web/                 # Next.js frontend
-│   ├── notify-worker/       # Background notification service
-│   └── notify-wss/          # WebSocket notification server
+│   ├── web/                 # Next.js 15 frontend application
+│   │   ├── src/
+│   │   │   ├── app/         # App Router pages and API routes
+│   │   │   ├── components/  # Reusable UI components
+│   │   │   ├── hooks/       # Custom React hooks
+│   │   │   ├── lib/         # Utilities and services
+│   │   │   └── types/       # TypeScript type definitions
+│   │   ├── prisma/          # Database schema and migrations
+│   │   └── .env.example     # Environment variables template
+│   ├── notify-worker/       # Background notification processing
+│   │   ├── src/
+│   │   │   ├── services/    # Notification processing logic
+│   │   │   └── lib/         # Database and Redis connections
+│   │   └── .env.example     # Environment variables template
+│   ├── notify-wss/          # WebSocket notification server
+│   │   ├── src/
+│   │   │   ├── services/    # WebSocket and Redis services
+│   │   │   └── middleware/  # Authentication middleware
+│   │   └── .env.example     # Environment variables template
+│   └── viewer-worker/       # View count batch processing
+│       ├── src/
+│       │   ├── services/    # View count processing logic
+│       │   └── lib/         # Database and Redis connections
+│       └── .env.example     # Environment variables template
 ├── docker-compose.yml       # Docker orchestration
-├── .env.example            # Environment variables template
 └── README.md               # This file
 ```
 
@@ -114,53 +150,34 @@ streamix/
 
 ### Environment Variables
 
-The Docker setup supports `.env` files with environment variable substitution and fallback defaults. Create a `.env` file in the root directory with your configuration:
+Each service has its own `.env.example` file with the required environment variables. Copy and configure them for your setup:
 
 ```bash
-# Database Configuration
-DATABASE_URL=postgresql://postgres:postgres@postgres:5432/streamix
+# Copy environment files
+cp apps/web/.env.example apps/web/.env
+cp apps/notify-worker/.env.example apps/notify-worker/.env
+cp apps/notify-wss/.env.example apps/notify-wss/.env
+cp apps/viewer-worker/.env.example apps/viewer-worker/.env
 
-# Redis Configuration
-REDIS_URL=redis://redis:6379
-
-# WebSocket Configuration
-NEXT_PUBLIC_WS_URL=http://localhost:8080
-PORT=8080
-
-# CloudFront Configuration (for production)
-CLOUDFRONT_DOMAIN=your-cloudfront-domain.cloudfront.net
-
-# Prisma Configuration
-PRISMA_CLI_BINARY_TARGETS=linux-arm64-openssl-3.0.x
-
-# Node Environment
-NODE_ENV=production
-
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
-CLERK_SECRET_KEY=sk_test_your_secret_key_here
-
-# Stripe Configuration
-STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_key_here
-STRIPE_SECRET_KEY=sk_test_your_stripe_secret_here
-STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
-
-# AWS Configuration (for S3 and CloudFront)
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-AWS_REGION=us-east-1
-S3_BUCKET_NAME=your-s3-bucket-name
-
-# LiveKit Configuration (for streaming)
-LIVEKIT_API_KEY=your_livekit_api_key
-LIVEKIT_API_SECRET=your_livekit_api_secret
-LIVEKIT_WS_URL=wss://your-livekit-domain.com
+# Edit each .env file with your configuration
 ```
 
-**Environment Variable Priority:**
-1. Environment variables from .env file (highest priority)
-2. Default values in docker-compose.yml (fallback)
-3. System environment variables (if set in your shell)
+**Key Environment Variables:**
+- **Database**: `DATABASE_URL` (PostgreSQL connection string)
+- **Redis**: `REDIS_URL` (Redis connection string)
+- **Authentication**: Clerk keys for user management
+- **Payments**: Stripe keys for subscriptions and tips
+- **Storage**: AWS S3 credentials for file uploads
+- **Streaming**: LiveKit credentials for live streaming
+- **WebSocket**: Server configuration for real-time features
+
+**For Production Deployment:**
+- **Web App**: Deployed on Vercel at [streamix-ten.vercel.app](https://streamix-ten.vercel.app)
+- **Workers**: Deployed on AWS ECS Fargate (notify-worker, notify-wss, viewer-worker)
+- **Database**: PostgreSQL on Neon
+- **Cache**: Redis Cloud
+- **Storage**: AWS S3 with CloudFront CDN
+- CloudFront configuration is only needed for production CDN setup
 
 ### Database Setup
 
@@ -177,7 +194,8 @@ The application runs as a multi-service Docker stack:
 
 - **web**: Next.js application (port 3000)
 - **notify-worker**: Background notification processor
-- **notify-wss**: WebSocket server (port 8080)
+- **notify-wss**: WebSocket server (port 8000)
+- **viewer-worker**: View count batch processor (port 3003)
 - **postgres**: PostgreSQL database (port 5432)
 - **redis**: Redis cache (port 6379)
 
@@ -194,6 +212,7 @@ docker-compose logs -f
 docker-compose logs -f web
 docker-compose logs -f notify-worker
 docker-compose logs -f notify-wss
+docker-compose logs -f viewer-worker
 
 # Stop all services
 docker-compose down
@@ -204,6 +223,8 @@ docker-compose up --build -d
 # Access service shell
 docker-compose exec web sh
 docker-compose exec notify-worker sh
+docker-compose exec notify-wss sh
+docker-compose exec viewer-worker sh
 docker-compose exec postgres psql -U postgres -d streamix
 ```
 
@@ -228,6 +249,7 @@ All services include health checks:
 - **Web**: HTTP GET to `/api/health`
 - **Notify Worker**: Simple node process check
 - **Notify WSS**: HTTP GET to `/ping`
+- **Viewer Worker**: HTTP GET to `http://localhost:3003/health`
 
 ### Troubleshooting
 
@@ -256,6 +278,7 @@ All services include health checks:
 - [Web App Documentation](./apps/web/README.md)
 - [Notification Worker Documentation](./apps/notify-worker/README.md)
 - [WebSocket Server Documentation](./apps/notify-wss/README.md)
+- [Viewer Worker Documentation](./apps/viewer-worker/README.md)
 
 ## Testing
 
@@ -267,16 +290,26 @@ npm test
 cd apps/web && npm test
 cd apps/notify-worker && npm test
 cd apps/notify-wss && npm test
+cd apps/viewer-worker && npm test
 ```
 
 ## Deployment
 
 ### Production Deployment
 
+**Current Production Setup:**
+- **Web App**: [streamix-ten.vercel.app](https://streamix-ten.vercel.app) (Vercel)
+- **Workers**: AWS ECS Fargate (notify-worker, notify-wss, viewer-worker)
+- **Database**: Neon PostgreSQL
+- **Cache**: Redis Cloud
+- **Storage**: AWS S3 + CloudFront CDN
+- **Streaming**: LiveKit Cloud
+
+**For Local Docker Deployment:**
 1. **Set up production environment variables**
 2. **Build and deploy with Docker**
    ```bash
-   docker-compose -f docker-compose.prod.yml up -d
+   docker-compose up -d
    ```
 
 3. **Set up reverse proxy** (nginx/traefik)
@@ -292,39 +325,9 @@ cd apps/notify-wss && npm test
 ### Production Considerations
 
 1. **Environment Variables**: Use proper secrets management
-2. **SSL/TLS**: Configure reverse proxy (nginx/traefik)
-3. **Monitoring**: Add logging and monitoring services
-4. **Scaling**: Consider horizontal scaling for stateless services
-5. **Backups**: Implement database backup strategy
-6. **Security**: Use non-root users and security scanning
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the documentation in each app directory
-
-## Recent Updates
-
-- Complete Docker containerization
-- Real-time notification system
-- Stripe payment integration
-- AWS S3 storage integration
-- LiveKit streaming integration
-- Comprehensive documentation
-
----
+2. **Monitoring**: Add logging and monitoring services
+3. **Scaling**: Consider horizontal scaling for stateless services
+4. **Backups**: Implement database backup strategy
+5. **Security**: Use non-root users and security scanning
 
 **Streamix** - Where creators go live and audiences connect in real-time.
