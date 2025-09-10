@@ -1,393 +1,450 @@
-# Streamix WebSocket Notification Server (notify-wss)
+# Streamix WebSocket Notification Server
 
-A real-time WebSocket server that subscribes to Redis pub/sub channels and delivers notifications to connected clients via Socket.IO.
+A WebSocket server that provides real-time notifications to connected clients.
 
 ## Overview
 
-The `notify-wss` service is part of the Streamix notification system:
-
-1. **Web App** → Pushes notifications to Redis queue
-2. **Notify Worker** → Processes queue, stores in Postgres, publishes to Redis pub/sub
-3. **Notify WSS** → Subscribes to Redis pub/sub, broadcasts to WebSocket clients ⬅️ **You are here**
+The WebSocket notification server is responsible for:
+- Managing WebSocket connections from clients
+- Subscribing to Redis notification channels
+- Broadcasting notifications to connected clients
+- Handling authentication and authorization
+- Managing connection state and cleanup
 
 ## Features
 
-- **Real-time WebSocket connections** using Socket.IO
-- **JWT-based authentication** for secure connections
-- **Redis pub/sub integration** for scalable message distribution
-- **Room-based subscriptions** (user, channel, global notifications)
-- **Health check endpoint** for monitoring
-- **Graceful shutdown** handling
-- **Docker support** for containerized deployment
+- **Real-time Notifications**: Instant delivery of notifications to connected clients
+- **User Authentication**: Secure WebSocket connections with authentication
+- **Channel-based Broadcasting**: Targeted notifications to specific users or channels
+- **Connection Management**: Robust connection handling and cleanup
+- **Health Monitoring**: Built-in health checks and monitoring
+- **Scalable Architecture**: Designed for horizontal scaling
 
-## Architecture
+## Tech Stack
+
+- **Runtime**: Node.js with TypeScript
+- **WebSocket**: Socket.IO for WebSocket management
+- **Cache**: Redis for pub/sub messaging
+- **Authentication**: JWT token validation
+- **Logging**: Structured logging with Winston
+- **Containerization**: Docker
+
+## Project Structure
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│   Redis Pub/Sub │ -> │   notify-wss     │ -> │  WebSocket       │
-│                 │    │                  │    │  Clients         │
-│ - user:notif:*  │    │ - Authentication │    │ - Web browsers   │
-│ - channel:*     │    │ - Room management│    │ - Mobile apps    │
-│ - global        │    │ - Broadcasting   │    │ - Other clients  │
-└─────────────────┘    └──────────────────┘    └──────────────────┘
+apps/notify-wss/
+├── src/
+│   ├── config/              # Configuration management
+│   ├── lib/                 # Utility libraries
+│   │   ├── logger.ts       # Logging configuration
+│   │   └── redis.ts        # Redis client
+│   ├── middleware/          # Middleware functions
+│   │   └── auth.ts         # Authentication middleware
+│   ├── services/           # Business logic services
+│   │   ├── redisSubscriptionService.ts  # Redis subscription management
+│   │   └── websocketServer.ts          # WebSocket server management
+│   ├── types/              # TypeScript type definitions
+│   └── index.ts            # Application entry point
+├── Dockerfile             # Docker configuration
+└── package.json           # Dependencies and scripts
 ```
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - Redis instance
-- JWT secret (shared with web app)
+- Environment variables configured
 
 ### Installation
 
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   # Required environment variables
+   REDIS_URL=redis://localhost:6379
+   PORT=8080
+   NODE_ENV=production
+   JWT_SECRET=your-jwt-secret-key
+   ```
+
+3. **Start the server**
+   ```bash
+   npm run dev
+   ```
+
+### Using Docker
+
 ```bash
-# Install dependencies
-npm install
+# Build the container
+docker build -t streamix-notify-wss .
 
-# Setup (install deps, type-check, build)
-npm run setup
-
-# Or use the setup script
-./scripts/setup.sh
+# Run the container
+docker run -d \
+  --name notify-wss \
+  --env-file .env \
+  -p 8080:8080 \
+  streamix-notify-wss
 ```
+
+## Configuration
 
 ### Environment Variables
 
-Create a `.env` file:
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `REDIS_URL` | Redis connection string | Yes | - |
+| `PORT` | Server port | No | `8080` |
+| `NODE_ENV` | Node environment | No | `production` |
+| `JWT_SECRET` | JWT secret for authentication | Yes | - |
+| `LOG_LEVEL` | Logging level | No | `info` |
+| `CORS_ORIGIN` | CORS origin for WebSocket connections | No | `*` |
 
-```env
-# Required
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=your-jwt-secret-here
+### Redis Channels
 
-# Optional
-PORT=8080
-HOST=0.0.0.0
-CORS_ORIGIN=http://localhost:3000
-LOG_LEVEL=info
+The server subscribes to the following Redis channels:
+- `notifications:user:{userId}` - User-specific notifications
+- `notifications:channel:{channelId}` - Channel-specific notifications
+- `notifications:global` - Global notifications
+
+## WebSocket API
+
+### Connection
+
+```javascript
+// Connect to WebSocket server
+const socket = io('http://localhost:8080', {
+  auth: {
+    token: 'your-jwt-token'
+  }
+});
 ```
 
-### Development
+### Authentication
 
-```bash
-# Start development server with hot reload
-npm run dev
+All WebSocket connections require authentication via JWT token:
 
-# Type check
-npm run type-check
+```javascript
+// Send authentication token
+socket.emit('authenticate', {
+  token: 'your-jwt-token'
+});
 ```
 
-### Production
+### Events
 
-```bash
-# Build the application
-npm run build
+#### Client to Server
 
-# Start production server
-npm start
+**`authenticate`**
+- Authenticate the connection
+- Payload: `{ token: string }`
+
+**`join_channel`**
+- Join a specific notification channel
+- Payload: `{ channelId: string }`
+
+**`leave_channel`**
+- Leave a notification channel
+- Payload: `{ channelId: string }`
+
+**`subscribe_user`**
+- Subscribe to user-specific notifications
+- Payload: `{ userId: string }`
+
+**`unsubscribe_user`**
+- Unsubscribe from user-specific notifications
+- Payload: `{ userId: string }`
+
+#### Server to Client
+
+**`notification`**
+- New notification received
+- Payload: `NotificationPayload`
+
+**`authenticated`**
+- Authentication successful
+- Payload: `{ success: true }`
+
+**`error`**
+- Error occurred
+- Payload: `{ message: string, code?: string }`
+
+### Notification Payload
+
+```typescript
+interface NotificationPayload {
+  id: string;
+  userId: string;
+  type: 'TIP' | 'SUB' | 'FOLLOW' | 'SYSTEM';
+  payload: {
+    amount?: number;
+    currency?: string;
+    channelId?: string;
+    channelName?: string;
+    userName?: string;
+    userImage?: string;
+    message?: string;
+  };
+  readAt?: Date;
+  createdAt: Date;
+}
 ```
 
 ## Client Integration
 
-### Authentication
-
-Clients must provide a JWT token when connecting:
+### JavaScript/TypeScript
 
 ```javascript
-import io from 'socket.io-client';
+import { io } from 'socket.io-client';
 
-const socket = io('ws://localhost:8080', {
-  auth: {
-    token: 'your-jwt-token-here'
+class NotificationClient {
+  constructor(token) {
+    this.socket = io('http://localhost:8080', {
+      auth: { token }
+    });
+    
+    this.setupEventListeners();
   }
-});
-```
-
-The JWT payload should include:
-```json
-{
-  "userId": "user_123",
-  "displayName": "John Doe",
-  "channelId": "channel_456" // Optional, for streamers
-}
-```
-
-### Event Handling
-
-```javascript
-// Connection events
-socket.on('connected', (message) => {
-  console.log('Connected:', message);
-});
-
-socket.on('error', (error) => {
-  console.error('Error:', error);
-});
-
-// Notification events
-socket.on('notification', (notification) => {
-  console.log('New notification:', notification);
-  // Handle different notification types
-  switch (notification.type) {
-    case 'TIP':
-      handleTipNotification(notification);
-      break;
-    case 'FOLLOW':
-      handleFollowNotification(notification);
-      break;
-    case 'SUBSCRIPTION':
-      handleSubscriptionNotification(notification);
-      break;
+  
+  setupEventListeners() {
+    this.socket.on('connect', () => {
+      console.log('Connected to notification server');
+    });
+    
+    this.socket.on('notification', (notification) => {
+      this.handleNotification(notification);
+    });
+    
+    this.socket.on('error', (error) => {
+      console.error('WebSocket error:', error);
+    });
   }
-});
-```
-
-### Room Subscriptions
-
-```javascript
-// Subscribe to different notification types
-socket.emit('join-user-notifications', 'user_123');
-socket.emit('join-channel-notifications', 'channel_456');
-socket.emit('join-global-notifications');
-
-// Unsubscribe
-socket.emit('leave-user-notifications', 'user_123');
-socket.emit('leave-channel-notifications', 'channel_456');
-socket.emit('leave-global-notifications');
-```
-
-## Notification Types
-
-### Tip Notification
-```typescript
-{
-  id: "notif_123",
-  userId: "user_456",
-  channelId: "channel_789",
-  type: "TIP",
-  data: {
-    tipId: "tip_123",
-    amount: 500, // in cents
-    message: "Great stream!",
-    tipper: {
-      id: "user_abc",
-      displayName: "Generous Viewer"
-    },
-    channel: {
-      id: "channel_789",
-      name: "StreamerName",
-      slug: "streamername"
-    }
-  },
-  timestamp: "2024-01-15T10:30:00Z"
+  
+  handleNotification(notification) {
+    // Handle the notification
+    console.log('New notification:', notification);
+  }
+  
+  joinChannel(channelId) {
+    this.socket.emit('join_channel', { channelId });
+  }
+  
+  subscribeToUser(userId) {
+    this.socket.emit('subscribe_user', { userId });
+  }
 }
 ```
 
-### Follow Notification
+### React Hook
+
 ```typescript
-{
-  id: "notif_456",
-  userId: "user_789",
-  channelId: "channel_123",
-  type: "FOLLOW",
-  data: {
-    follower: {
-      id: "user_def",
-      displayName: "New Follower",
-      imageUrl: "https://example.com/avatar.jpg"
-    },
-    channel: {
-      id: "channel_123",
-      name: "StreamerName",
-      slug: "streamername"
-    }
-  },
-  timestamp: "2024-01-15T10:31:00Z"
+import { useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+export function useNotifications(token: string) {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  useEffect(() => {
+    if (!token) return;
+    
+    const newSocket = io('http://localhost:8080', {
+      auth: { token }
+    });
+    
+    newSocket.on('notification', (notification) => {
+      setNotifications(prev => [notification, ...prev]);
+    });
+    
+    setSocket(newSocket);
+    
+    return () => {
+      newSocket.close();
+    };
+  }, [token]);
+  
+  return { socket, notifications };
 }
 ```
 
-### Subscription Notification
-```typescript
-{
-  id: "notif_789",
-  userId: "user_abc",
-  channelId: "channel_def",
-  type: "SUBSCRIPTION",
-  data: {
-    subscription: {
-      id: "sub_123",
-      tier: "premium",
-      amount: 999 // in cents
-    },
-    subscriber: {
-      id: "user_ghi",
-      displayName: "Premium Subscriber",
-      imageUrl: "https://example.com/avatar.jpg"
-    },
-    channel: {
-      id: "channel_def",
-      name: "StreamerName",
-      slug: "streamername"
-    }
-  },
-  timestamp: "2024-01-15T10:32:00Z"
-}
+## Development
+
+### Running in Development
+
+```bash
+# Start with hot reload
+npm run dev
+
+# Start with debug logging
+LOG_LEVEL=debug npm run dev
+
+# Start with specific port
+PORT=3001 npm run dev
 ```
 
-## Redis Channels
+### Building for Production
 
-The service subscribes to these Redis pub/sub channels:
+```bash
+# Build TypeScript
+npm run build
 
-- `user:notifications:{userId}` - User-specific notifications
-- `channel:notifications:{channelId}` - Channel-specific notifications  
-- `notifications:all` - Global notifications
+# Build with Docker
+docker build -t streamix-notify-wss .
+```
 
-## Socket.IO Rooms
+### Testing
 
-Clients are automatically organized into rooms:
+```bash
+# Run tests
+npm test
 
-- `user-notifications:{userId}` - User's own notifications
-- `channel-notifications:{channelId}` - Channel notifications
-- `global-notifications` - Global notifications
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
 
 ## Monitoring
 
-### Health Check
+### Health Checks
 
-```bash
-curl http://localhost:8080/health
-```
+The server includes health checks for:
+- Redis connectivity
+- WebSocket server status
+- Active connections count
 
-Response:
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "connectedClients": 15,
-  "totalSockets": 15,
-  "rooms": ["user-notifications:user_123", "channel-notifications:channel_456"]
-}
-```
+### Logging
 
-### Logs
+Structured logging with different levels:
+- **error**: Critical errors and exceptions
+- **warn**: Warning messages and recoverable errors
+- **info**: General information and connection status
+- **debug**: Detailed debugging information
 
-The service uses structured logging with Winston:
+### Metrics
 
-```json
-{
-  "timestamp": "2024-01-15 10:30:00",
-  "level": "info",
-  "message": "Client connected",
-  "service": "notify-wss",
-  "socketId": "abc123",
-  "userId": "user_456",
-  "displayName": "John Doe"
-}
-```
-
-## Docker Deployment
-
-### Build Image
-
-```bash
-# Build from project root
-docker build -f apps/notify-wss/Dockerfile -t streamix-notify-wss .
-```
-
-### Run Container
-
-```bash
-docker run -p 8080:8080 \
-  -e REDIS_URL=redis://redis:6379 \
-  -e JWT_SECRET=your-secret \
-  -e CORS_ORIGIN=https://your-domain.com \
-  streamix-notify-wss
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  notify-wss:
-    build:
-      context: .
-      dockerfile: apps/notify-wss/Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGIN=${CORS_ORIGIN}
-    depends_on:
-      - redis
-```
-
-## Scaling Considerations
-
-### Horizontal Scaling
-
-When running multiple instances:
-
-1. **Load Balancer**: Use sticky sessions or configure Socket.IO for multiple nodes
-2. **Redis Adapter**: Configure Socket.IO Redis adapter for cross-instance communication
-3. **Health Checks**: Each instance provides its own health endpoint
-
-### Performance
-
-- **Connection Limits**: Monitor and set appropriate connection limits
-- **Memory Usage**: Track connected clients and room subscriptions
-- **Redis Connections**: Pool Redis connections appropriately
-
-## Security
-
-### Authentication
-- JWT tokens are required for all connections
-- Tokens are verified using the shared secret
-- Invalid tokens result in connection rejection
-
-### Authorization
-- Users can only subscribe to their own user notifications
-- Channel notifications are public (anyone can subscribe)
-- Global notifications are public
-
-### CORS
-- Configure CORS origin to match your frontend domain
-- Credentials are enabled for cookie-based auth if needed
+Key metrics to monitor:
+- Active WebSocket connections
+- Messages sent per second
+- Connection/disconnection rates
+- Error rates
+- Redis subscription health
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Connection Refused**
-   - Check if Redis is running and accessible
-   - Verify Redis URL in environment variables
+**Connection Refused:**
+- Check if server is running
+- Verify port is not blocked
+- Check firewall settings
 
-2. **Authentication Failed**
-   - Ensure JWT secret matches the web app
-   - Check token format and expiration
+**Authentication Failures:**
+- Verify JWT token is valid
+- Check JWT_SECRET configuration
+- Ensure token is not expired
 
-3. **No Notifications Received**
-   - Verify notify-worker is processing and publishing
-   - Check Redis pub/sub channels
-   - Ensure client is subscribed to correct rooms
+**Redis Connection Errors:**
+- Verify REDIS_URL is correct
+- Check Redis server is running
+- Verify Redis authentication if configured
+
+**High Memory Usage:**
+- Monitor connection count
+- Check for memory leaks
+- Implement connection limits
 
 ### Debug Mode
 
-Set `LOG_LEVEL=debug` for verbose logging:
+Enable debug logging for detailed troubleshooting:
 
 ```bash
 LOG_LEVEL=debug npm run dev
 ```
 
-## Integration with notify-worker
+## Performance
 
-The `notify-wss` service works in conjunction with the `notify-worker`:
+### Optimization Tips
 
-1. **notify-worker** processes notifications and publishes to Redis pub/sub
-2. **notify-wss** subscribes to Redis pub/sub and broadcasts to WebSocket clients
-3. Both services should use the same Redis instance and channel naming conventions
+1. **Connection Pooling**: Use Redis connection pooling
+2. **Message Batching**: Batch messages when possible
+3. **Connection Limits**: Implement connection limits
+4. **Memory Management**: Monitor and optimize memory usage
+5. **Error Handling**: Implement proper error handling
 
-Make sure both services are running for the complete notification flow.
+### Scaling
+
+- **Horizontal Scaling**: Run multiple server instances
+- **Load Balancing**: Use load balancer for WebSocket connections
+- **Redis Clustering**: Use Redis cluster for high availability
+- **Monitoring**: Implement comprehensive monitoring
+
+## Security
+
+### Best Practices
+
+- Use JWT for authentication
+- Implement rate limiting
+- Validate all incoming data
+- Use secure WebSocket connections (WSS)
+- Implement proper error handling
+
+### Authentication
+
+- JWT token validation
+- Token expiration handling
+- Secure token transmission
+- User session management
+
+## Production Deployment
+
+### Docker Deployment
+
+```bash
+# Build production image
+docker build -t streamix-notify-wss:latest .
+
+# Run with environment variables
+docker run -d \
+  --name notify-wss \
+  --env-file .env \
+  -p 8080:8080 \
+  streamix-notify-wss:latest
+```
+
+### Environment Configuration
+
+```bash
+# Production environment variables
+REDIS_URL=redis://redis-cluster:6379
+PORT=8080
+NODE_ENV=production
+JWT_SECRET=your-production-jwt-secret
+LOG_LEVEL=info
+CORS_ORIGIN=https://yourdomain.com
+```
+
+### Load Balancing
+
+For multiple instances, use a load balancer that supports WebSocket:
+- Nginx with WebSocket support
+- HAProxy
+- AWS Application Load Balancer
+
+## Contributing
+
+1. Follow the existing code style
+2. Add tests for new features
+3. Update documentation
+4. Ensure all tests pass
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
